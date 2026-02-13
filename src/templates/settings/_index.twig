@@ -1,0 +1,146 @@
+{% extends '_layouts/cp.twig' %}
+{% import '_includes/forms.twig' as forms %}
+
+{% set title = 'Wink Settings'|t('wink') %}
+{% set selectedSubnavItem = 'settings' %}
+{% set fullPageForm = true %}
+
+{% block content %}
+    {{ actionInput('wink/settings/save') }}
+    {{ redirectInput('wink/settings') }}
+
+    <h2>{{ 'Tracking'|t('wink') }}</h2>
+
+    {{ forms.lightswitchField({
+        label: 'Enable Tracking'|t('wink'),
+        id: 'enableTracking',
+        name: 'enableTracking',
+        on: settings.enableTracking,
+        instructions: 'Globally enable or disable event tracking.'|t('wink'),
+    }) }}
+
+    {{ forms.lightswitchField({
+        label: 'Respect Do Not Track'|t('wink'),
+        id: 'respectDnt',
+        name: 'respectDnt',
+        on: settings.respectDnt,
+        instructions: 'Skip tracking for visitors with DNT header enabled.'|t('wink'),
+    }) }}
+
+    {{ forms.lightswitchField({
+        label: 'Anonymize IP Addresses'|t('wink'),
+        id: 'anonymizeIp',
+        name: 'anonymizeIp',
+        on: settings.anonymizeIp,
+        instructions: 'Zero the last octet of visitor IP addresses.'|t('wink'),
+    }) }}
+
+    {{ forms.textField({
+        label: 'Cookie Name'|t('wink'),
+        id: 'cookieName',
+        name: 'cookieName',
+        value: settings.cookieName,
+        instructions: 'Name of the cookie used to store the visitor ID.'|t('wink'),
+    }) }}
+
+    {{ forms.textField({
+        label: 'Cookie Duration (days)'|t('wink'),
+        id: 'cookieDuration',
+        name: 'cookieDuration',
+        value: settings.cookieDuration,
+        type: 'number',
+        min: 1,
+        size: 10,
+    }) }}
+
+    <hr>
+    <h2>{{ 'Google Analytics 4'|t('wink') }}</h2>
+
+    {{ forms.lightswitchField({
+        label: 'Enable GA4 Event Forwarding'|t('wink'),
+        id: 'enableGa4',
+        name: 'enableGa4',
+        on: settings.enableGa4,
+        instructions: 'Forward experiment events to Google Analytics via gtag().'|t('wink'),
+    }) }}
+
+    {{ forms.textField({
+        label: 'GA4 Measurement ID'|t('wink'),
+        id: 'ga4MeasurementId',
+        name: 'ga4MeasurementId',
+        value: settings.ga4MeasurementId,
+        instructions: 'e.g. G-XXXXXXXXXX'|t('wink'),
+    }) }}
+
+    <hr>
+    <h2>{{ 'Google Tag Manager'|t('wink') }}</h2>
+
+    {{ forms.lightswitchField({
+        label: 'Enable GTM DataLayer Push'|t('wink'),
+        id: 'enableGtm',
+        name: 'enableGtm',
+        on: settings.enableGtm,
+        instructions: 'Push experiment events to the dataLayer for GTM.'|t('wink'),
+    }) }}
+
+    {{ forms.textField({
+        label: 'GTM Event Name'|t('wink'),
+        id: 'gtmEventName',
+        name: 'gtmEventName',
+        value: settings.gtmEventName,
+        instructions: 'Custom event name pushed to the dataLayer.'|t('wink'),
+    }) }}
+
+    <hr>
+    <h2>{{ 'Performance'|t('wink') }}</h2>
+
+    {{ forms.textField({
+        label: 'Event Batch Interval (seconds)'|t('wink'),
+        id: 'batchInterval',
+        name: 'batchInterval',
+        value: settings.batchInterval,
+        type: 'number',
+        min: 1,
+        max: 60,
+        size: 10,
+        instructions: 'How often the frontend tracker flushes queued events.'|t('wink'),
+    }) }}
+
+    {{ forms.textField({
+        label: 'Data Retention (days)'|t('wink'),
+        id: 'retentionDays',
+        name: 'retentionDays',
+        value: settings.retentionDays,
+        type: 'number',
+        min: 1,
+        size: 10,
+        instructions: 'Events older than this will be automatically purged.'|t('wink'),
+    }) }}
+
+    <hr>
+    <h2>{{ 'Statistical Settings'|t('wink') }}</h2>
+
+    {{ forms.selectField({
+        label: 'Significance Threshold'|t('wink'),
+        id: 'significanceThreshold',
+        name: 'significanceThreshold',
+        value: settings.significanceThreshold,
+        options: [
+            {label: '90%', value: 90},
+            {label: '95% (Recommended)', value: 95},
+            {label: '99%', value: 99},
+        ],
+        instructions: 'Confidence level required to declare a winner.'|t('wink'),
+    }) }}
+
+    {{ forms.textField({
+        label: 'Minimum Sample Size'|t('wink'),
+        id: 'minimumSampleSize',
+        name: 'minimumSampleSize',
+        value: settings.minimumSampleSize,
+        type: 'number',
+        min: 10,
+        size: 10,
+        instructions: 'Minimum impressions per variant before significance is calculated.'|t('wink'),
+    }) }}
+{% endblock %}

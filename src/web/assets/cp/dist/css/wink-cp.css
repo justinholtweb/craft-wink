@@ -1,0 +1,66 @@
+/* Wink CP Styles */
+
+.wink-variant-row,
+.wink-goal-row {
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    padding: 14px;
+    margin-bottom: 10px;
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.wink-variant-row:hover,
+.wink-goal-row:hover {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+.wink-variant-row .flex,
+.wink-goal-row .flex {
+    gap: 12px;
+    align-items: flex-end;
+}
+
+.wink-stats-card {
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+}
+
+.wink-stats-card .value {
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.2;
+    margin-top: 4px;
+}
+
+.wink-stats-card .label {
+    color: #6b7280;
+    font-size: 13px;
+}
+
+/* Winner highlight */
+tr.wink-winner {
+    background: #f0fdf4;
+}
+
+/* Token badges */
+.token.blue {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.token.green {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.token {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 500;
+    vertical-align: middle;
+}

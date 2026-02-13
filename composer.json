@@ -1,0 +1,50 @@
+{
+    "name": "jholt/craft-wink",
+    "description": "A/B testing & experimentation plugin for Craft CMS",
+    "type": "craft-plugin",
+    "version": "1.0.0",
+    "keywords": [
+        "craft",
+        "cms",
+        "craftcms",
+        "ab-testing",
+        "split-testing",
+        "experimentation",
+        "conversion",
+        "optimization"
+    ],
+    "license": "proprietary",
+    "authors": [
+        {
+            "name": "J Holt",
+            "homepage": "https://github.com/jholt"
+        }
+    ],
+    "support": {
+        "email": "support@jholt.dev",
+        "docs": "https://github.com/jholt/craft-wink/blob/main/README.md",
+        "issues": "https://github.com/jholt/craft-wink/issues"
+    },
+    "require": {
+        "php": "^8.2",
+        "craftcms/cms": "^5.0.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "jholt\\wink\\": "src/"
+        }
+    },
+    "extra": {
+        "name": "Wink",
+        "handle": "wink",
+        "hasCpSettings": true,
+        "hasCpSection": true,
+        "class": "jholt\\wink\\Plugin",
+        "developer": "J Holt",
+        "developerUrl": "https://jholt.dev",
+        "documentationUrl": "https://github.com/jholt/craft-wink/blob/main/README.md",
+        "changelogUrl": "https://raw.githubusercontent.com/jholt/craft-wink/main/CHANGELOG.md"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

@@ -1,0 +1,62 @@
+{% extends '_layouts/cp.twig' %}
+
+{% set title = 'Reports'|t('wink') %}
+{% set selectedSubnavItem = 'reports' %}
+
+{% block content %}
+    {% if experiments|length %}
+        <table class="data fullwidth">
+            <thead>
+                <tr>
+                    <th>{{ 'Experiment'|t('wink') }}</th>
+                    <th>{{ 'Status'|t('wink') }}</th>
+                    <th>{{ 'Impressions'|t('wink') }}</th>
+                    <th>{{ 'Conversions'|t('wink') }}</th>
+                    <th>{{ 'Conv. Rate'|t('wink') }}</th>
+                    <th>{{ 'Significance'|t('wink') }}</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for experiment in experiments %}
+                    {% set report = reports[experiment.id] %}
+                    <tr>
+                        <td>
+                            <a href="{{ cpUrl('wink/reports/' ~ experiment.id) }}">
+                                <strong>{{ experiment.title }}</strong>
+                            </a>
+                            <div class="smalltext light">{{ experiment.handle }}</div>
+                        </td>
+                        <td>
+                            <span class="status {{ experiment.experimentStatusEnum.color }}"></span>
+                            {{ experiment.experimentStatusEnum.label }}
+                        </td>
+                        <td>{{ report.totalImpressions|number_format }}</td>
+                        <td>{{ report.totalConversions|number_format }}</td>
+                        <td>{{ (report.overallConversionRate * 100)|number_format(2) }}%</td>
+                        <td>
+                            {% if report.isSignificant %}
+                                <span class="status green"></span>
+                                {{ report.confidence|number_format(1) }}%
+                            {% elseif report.totalImpressions > 0 %}
+                                <span class="status orange"></span>
+                                {{ 'Collecting data…'|t('wink') }}
+                            {% else %}
+                                <span class="status"></span>
+                                {{ 'No data'|t('wink') }}
+                            {% endif %}
+                        </td>
+                        <td class="thin">
+                            <a href="{{ cpUrl('wink/reports/' ~ experiment.id) }}" class="btn small">{{ 'View'|t('wink') }}</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="zilch">
+            <p>{{ 'No experiments yet.'|t('wink') }}</p>
+            <a href="{{ cpUrl('wink/experiments/new') }}" class="btn submit">{{ 'Create Experiment'|t('wink') }}</a>
+        </div>
+    {% endif %}
+{% endblock %}

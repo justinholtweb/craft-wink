@@ -1,0 +1,286 @@
+{% extends '_layouts/cp.twig' %}
+
+{% set selectedSubnavItem = 'experiments' %}
+{% set fullPageForm = true %}
+{% set saveShortcutRedirect = experiment.cpEditUrl ?? cpUrl('wink/experiments/{id}') %}
+
+{% block header %}
+    {{ parent() }}
+{% endblock %}
+
+{% block content %}
+    {{ actionInput('wink/experiments/save') }}
+    {{ redirectInput('wink/experiments/{id}') }}
+
+    {% if experiment.id %}
+        {{ hiddenInput('experimentId', experiment.id) }}
+    {% endif %}
+
+    <div id="fields">
+        {# Details #}
+        <div id="tab-details">
+            {{ forms.textField({
+                first: true,
+                label: 'Title'|t('app'),
+                id: 'title',
+                name: 'title',
+                value: experiment.title,
+                errors: experiment.getErrors('title'),
+                autofocus: true,
+                required: true,
+            }) }}
+
+            {{ forms.textField({
+                label: 'Handle'|t('wink'),
+                id: 'handle',
+                name: 'handle',
+                value: experiment.handle,
+                errors: experiment.getErrors('handle'),
+                required: true,
+                instructions: 'Used in Twig tags to reference this experiment.'|t('wink'),
+            }) }}
+
+            {{ forms.textareaField({
+                label: 'Description'|t('app'),
+                id: 'description',
+                name: 'description',
+                value: experiment.description,
+                rows: 3,
+            }) }}
+
+            {{ forms.textField({
+                label: 'Traffic Allocation'|t('wink'),
+                id: 'trafficPercent',
+                name: 'trafficPercent',
+                type: 'number',
+                value: experiment.trafficPercent,
+                min: 1,
+                max: 100,
+                size: 5,
+                instructions: 'Percentage of visitors to include in this experiment.'|t('wink'),
+                errors: experiment.getErrors('trafficPercent'),
+            }) }}
+        </div>
+
+        {# Variants #}
+        <hr>
+        <h2>{{ 'Variants'|t('wink') }}</h2>
+        <p class="light">{{ 'Define the content variants for this experiment. Weights must add up to 100.'|t('wink') }}</p>
+
+        <div id="wink-variants">
+            {% set variants = experiment.getVariants() %}
+            {% if not variants|length %}
+                {% set variants = [
+                    {id: '', handle: 'control', title: 'Control', content: '', weight: 50, isControl: true, sortOrder: 0},
+                    {id: '', handle: 'variant-a', title: 'Variant A', content: '', weight: 50, isControl: false, sortOrder: 1},
+                ] %}
+            {% endif %}
+
+            {% for variant in variants %}
+                <div class="wink-variant-row matrixblock" style="padding: 14px; margin-bottom: 10px;">
+                    {{ hiddenInput('variants[' ~ loop.index0 ~ '][id]', variant.id ?? '') }}
+
+                    <div class="flex">
+                        <div class="flex-grow">
+                            {{ forms.textField({
+                                label: 'Title'|t('app'),
+                                name: 'variants[' ~ loop.index0 ~ '][title]',
+                                value: variant.title ?? '',
+                                required: true,
+                                size: 30,
+                            }) }}
+                        </div>
+                        <div>
+                            {{ forms.textField({
+                                label: 'Handle'|t('wink'),
+                                name: 'variants[' ~ loop.index0 ~ '][handle]',
+                                value: variant.handle ?? '',
+                                required: true,
+                                size: 20,
+                            }) }}
+                        </div>
+                        <div>
+                            {{ forms.textField({
+                                label: 'Weight'|t('wink'),
+                                name: 'variants[' ~ loop.index0 ~ '][weight]',
+                                value: variant.weight ?? 50,
+                                type: 'number',
+                                min: 0,
+                                max: 100,
+                                size: 5,
+                            }) }}
+                        </div>
+                        <div>
+                            {{ forms.checkboxField({
+                                label: 'Control'|t('wink'),
+                                name: 'variants[' ~ loop.index0 ~ '][isControl]',
+                                checked: variant.isControl ?? false,
+                                value: 1,
+                            }) }}
+                        </div>
+                    </div>
+
+                    {{ forms.textareaField({
+                        label: 'Content'|t('wink'),
+                        name: 'variants[' ~ loop.index0 ~ '][content]',
+                        value: variant.content ?? '',
+                        rows: 4,
+                        instructions: 'HTML or text content for this variant.'|t('wink'),
+                    }) }}
+                </div>
+            {% endfor %}
+        </div>
+
+        {# Goals #}
+        <hr>
+        <h2>{{ 'Conversion Goals'|t('wink') }}</h2>
+        <p class="light">{{ 'Define what counts as a conversion for this experiment.'|t('wink') }}</p>
+
+        <div id="wink-goals">
+            {% set goals = experiment.getGoals() %}
+            {% if not goals|length %}
+                {% set goals = [
+                    {id: '', name: 'Primary Goal', handle: 'primary-goal', goalType: 'pageview', goalTarget: '', isPrimary: true},
+                ] %}
+            {% endif %}
+
+            {% for goal in goals %}
+                <div class="wink-goal-row matrixblock" style="padding: 14px; margin-bottom: 10px;">
+                    {{ hiddenInput('goals[' ~ loop.index0 ~ '][id]', goal.id ?? '') }}
+
+                    <div class="flex">
+                        <div class="flex-grow">
+                            {{ forms.textField({
+                                label: 'Name'|t('app'),
+                                name: 'goals[' ~ loop.index0 ~ '][name]',
+                                value: goal.name ?? '',
+                                required: true,
+                            }) }}
+                        </div>
+                        <div>
+                            {{ forms.textField({
+                                label: 'Handle'|t('wink'),
+                                name: 'goals[' ~ loop.index0 ~ '][handle]',
+                                value: goal.handle ?? '',
+                                required: true,
+                            }) }}
+                        </div>
+                    </div>
+
+                    <div class="flex">
+                        <div>
+                            {{ forms.selectField({
+                                label: 'Goal Type'|t('wink'),
+                                name: 'goals[' ~ loop.index0 ~ '][goalType]',
+                                value: goal.goalType.value ?? goal.goalType ?? 'pageview',
+                                options: goalTypes|map(g => {label: g.label(), value: g.value}),
+                            }) }}
+                        </div>
+                        <div class="flex-grow">
+                            {{ forms.textField({
+                                label: 'Target'|t('wink'),
+                                name: 'goals[' ~ loop.index0 ~ '][goalTarget]',
+                                value: goal.goalTarget ?? '',
+                                instructions: 'URL pattern, CSS selector, or event name depending on goal type.'|t('wink'),
+                            }) }}
+                        </div>
+                        <div>
+                            {{ forms.checkboxField({
+                                label: 'Primary'|t('wink'),
+                                name: 'goals[' ~ loop.index0 ~ '][isPrimary]',
+                                checked: goal.isPrimary ?? false,
+                                value: 1,
+                            }) }}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block details %}
+    <div class="meta">
+        {% if experiment.id %}
+            <div class="data">
+                <h5 class="heading">{{ 'Status'|t('wink') }}</h5>
+                <div class="value">
+                    <span class="status {{ experiment.experimentStatusEnum.color }}"></span>
+                    {{ experiment.experimentStatusEnum.label }}
+                </div>
+            </div>
+
+            {% set statusEnum = experiment.experimentStatusEnum %}
+
+            {% if statusEnum.canTransitionTo(constant('jholt\\wink\\enums\\ExperimentStatus::Running')) %}
+                <div class="data">
+                    <button class="btn submit small wink-status-btn" data-action="start">{{ 'Start'|t('wink') }}</button>
+                </div>
+            {% endif %}
+
+            {% if statusEnum.canTransitionTo(constant('jholt\\wink\\enums\\ExperimentStatus::Paused')) %}
+                <div class="data">
+                    <button class="btn small wink-status-btn" data-action="pause">{{ 'Pause'|t('wink') }}</button>
+                </div>
+            {% endif %}
+
+            {% if statusEnum.canTransitionTo(constant('jholt\\wink\\enums\\ExperimentStatus::Completed')) %}
+                <div class="data">
+                    <button class="btn small wink-status-btn" data-action="complete">{{ 'Complete'|t('wink') }}</button>
+                </div>
+            {% endif %}
+
+            {% if statusEnum.canTransitionTo(constant('jholt\\wink\\enums\\ExperimentStatus::Archived')) %}
+                <div class="data">
+                    <button class="btn small wink-status-btn" data-action="archive">{{ 'Archive'|t('wink') }}</button>
+                </div>
+            {% endif %}
+
+            <div class="data">
+                <h5 class="heading">{{ 'Variants'|t('wink') }}</h5>
+                <div class="value">{{ experiment.variantCount }}</div>
+            </div>
+
+            {% if experiment.startDate %}
+                <div class="data">
+                    <h5 class="heading">{{ 'Started'|t('wink') }}</h5>
+                    <div class="value">{{ experiment.startDate|date }}</div>
+                </div>
+            {% endif %}
+
+            {% if experiment.endDate %}
+                <div class="data">
+                    <h5 class="heading">{{ 'Ended'|t('wink') }}</h5>
+                    <div class="value">{{ experiment.endDate|date }}</div>
+                </div>
+            {% endif %}
+
+            <hr>
+
+            <div class="data">
+                <a href="{{ cpUrl('wink/reports/' ~ experiment.id) }}" class="btn">{{ 'View Report'|t('wink') }}</a>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% js %}
+document.querySelectorAll('.wink-status-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        var action = this.dataset.action;
+        if (confirm('Are you sure you want to ' + action + ' this experiment?')) {
+            Craft.sendActionRequest('POST', 'wink/experiments/update-status', {
+                data: {
+                    id: {{ experiment.id ?? 'null' }},
+                    action: action,
+                }
+            }).then(function() {
+                location.reload();
+            }).catch(function(error) {
+                Craft.cp.displayError(error?.response?.data?.message || 'Could not update status.');
+            });
+        }
+    });
+});
+{% endjs %}

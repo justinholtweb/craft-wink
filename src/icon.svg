@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- A/B split bars forming the face structure -->
+  <!-- Left bar (A) - taller, representing control -->
+  <rect x="18" y="22" width="24" height="56" rx="4" fill="currentColor" opacity="0.15"/>
+  <rect x="18" y="38" width="24" height="40" rx="4" fill="currentColor"/>
+
+  <!-- Right bar (B) - shorter, representing variant -->
+  <rect x="58" y="22" width="24" height="56" rx="4" fill="currentColor" opacity="0.15"/>
+  <rect x="58" y="48" width="24" height="30" rx="4" fill="currentColor"/>
+
+  <!-- Open eye (on the A bar) -->
+  <circle cx="30" cy="32" r="5" fill="currentColor"/>
+
+  <!-- Winking eye (on the B bar) - a curved line -->
+  <path d="M64 32 Q70 27 76 32" stroke="currentColor" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+
+  <!-- Smile connecting both bars -->
+  <path d="M32 84 Q50 96 68 84" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round"/>
+</svg>

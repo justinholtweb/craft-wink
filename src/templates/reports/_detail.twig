@@ -1,0 +1,193 @@
+{% extends '_layouts/cp.twig' %}
+
+{% set title = experiment.title ~ ' — Report'|t('wink') %}
+{% set selectedSubnavItem = 'reports' %}
+
+{% block content %}
+    {# Goal selector #}
+    {% if goals|length > 1 %}
+        <div class="flex" style="margin-bottom: 24px;">
+            <div>
+                <label for="goalSelector" class="visually-hidden">{{ 'Filter by Goal'|t('wink') }}</label>
+                <select id="goalSelector" class="text" onchange="location.href='{{ cpUrl('wink/reports/' ~ experiment.id) }}?goalId=' + this.value">
+                    <option value="">{{ 'All Goals'|t('wink') }}</option>
+                    {% for goal in goals %}
+                        <option value="{{ goal.id }}" {{ selectedGoalId == goal.id ? 'selected' }}>
+                            {{ goal.name }}
+                            {% if goal.isPrimary %} ({{ 'Primary'|t('wink') }}){% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    {% endif %}
+
+    {# Summary stats #}
+    <div class="flex" style="gap: 24px; margin-bottom: 24px;">
+        <div class="pane" style="flex: 1; text-align: center; padding: 20px;">
+            <div class="light" style="margin-bottom: 4px;">{{ 'Total Impressions'|t('wink') }}</div>
+            <div style="font-size: 24px; font-weight: 600;">{{ report.totalImpressions|number_format }}</div>
+        </div>
+        <div class="pane" style="flex: 1; text-align: center; padding: 20px;">
+            <div class="light" style="margin-bottom: 4px;">{{ 'Total Conversions'|t('wink') }}</div>
+            <div style="font-size: 24px; font-weight: 600;">{{ report.totalConversions|number_format }}</div>
+        </div>
+        <div class="pane" style="flex: 1; text-align: center; padding: 20px;">
+            <div class="light" style="margin-bottom: 4px;">{{ 'Conversion Rate'|t('wink') }}</div>
+            <div style="font-size: 24px; font-weight: 600;">{{ (report.overallConversionRate * 100)|number_format(2) }}%</div>
+        </div>
+        <div class="pane" style="flex: 1; text-align: center; padding: 20px;">
+            <div class="light" style="margin-bottom: 4px;">{{ 'Status'|t('wink') }}</div>
+            <div style="font-size: 24px; font-weight: 600;">
+                {% if report.isSignificant %}
+                    <span style="color: #16a34a;">{{ 'Significant'|t('wink') }}</span>
+                {% else %}
+                    <span style="color: #9ca3af;">{{ 'Pending'|t('wink') }}</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# Chart #}
+    <div class="pane" style="margin-bottom: 24px; padding: 20px;">
+        <h2>{{ 'Conversion Rate Over Time'|t('wink') }}</h2>
+        <div style="position: relative; height: 300px;">
+            <canvas id="wink-chart"></canvas>
+        </div>
+    </div>
+
+    {# Variant comparison table #}
+    <div class="pane" style="padding: 20px;">
+        <h2>{{ 'Variant Comparison'|t('wink') }}</h2>
+        <table class="data fullwidth" style="margin-top: 12px;">
+            <thead>
+                <tr>
+                    <th>{{ 'Variant'|t('wink') }}</th>
+                    <th>{{ 'Impressions'|t('wink') }}</th>
+                    <th>{{ 'Conversions'|t('wink') }}</th>
+                    <th>{{ 'Conv. Rate'|t('wink') }}</th>
+                    <th>{{ 'Uplift vs Control'|t('wink') }}</th>
+                    <th>{{ 'Confidence'|t('wink') }}</th>
+                    <th>{{ 'CI (95%)'|t('wink') }}</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for vr in report.variants %}
+                    <tr{% if report.winnerVariantId == vr.variantId %} style="background: #f0fdf4;"{% endif %}>
+                        <td>
+                            <strong>{{ vr.variantTitle }}</strong>
+                            {% if vr.isControl %}
+                                <span class="token blue" style="margin-left: 4px;">{{ 'Control'|t('wink') }}</span>
+                            {% endif %}
+                            {% if report.winnerVariantId == vr.variantId %}
+                                <span class="token green" style="margin-left: 4px;">{{ 'Winner'|t('wink') }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ vr.impressions|number_format }}</td>
+                        <td>{{ vr.conversions|number_format }}</td>
+                        <td>{{ (vr.conversionRate * 100)|number_format(2) }}%</td>
+                        <td>
+                            {% if vr.isControl %}
+                                —
+                            {% elseif vr.uplift > 0 %}
+                                <span style="color: #16a34a;">+{{ vr.uplift|number_format(1) }}%</span>
+                            {% elseif vr.uplift < 0 %}
+                                <span style="color: #dc2626;">{{ vr.uplift|number_format(1) }}%</span>
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if vr.isControl %}
+                                —
+                            {% else %}
+                                {{ vr.confidence|number_format(1) }}%
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ (vr.confidenceInterval[0] * 100)|number_format(2) }}% –
+                            {{ (vr.confidenceInterval[1] * 100)|number_format(2) }}%
+                        </td>
+                        <td class="thin">
+                            {% if not vr.isControl and experiment.experimentStatus == 'running' and not report.winnerVariantId %}
+                                <button class="btn small submit wink-declare-winner"
+                                        data-variant-id="{{ vr.variantId }}"
+                                        data-variant-title="{{ vr.variantTitle }}">
+                                    {{ 'Declare Winner'|t('wink') }}
+                                </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}
+
+{% js %}
+// Load Chart.js from CDN
+var script = document.createElement('script');
+script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js';
+script.onload = function() {
+    Craft.sendActionRequest('GET', null, {
+        url: Craft.getCpUrl('wink/reports/chart-data', {
+            experimentId: {{ experiment.id }},
+            goalId: '{{ selectedGoalId ?? '' }}'
+        })
+    }).then(function(response) {
+        var ctx = document.getElementById('wink-chart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: response.data,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Conversion Rate (%)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                }
+            }
+        });
+    });
+};
+document.head.appendChild(script);
+
+// Declare winner buttons
+document.querySelectorAll('.wink-declare-winner').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        var variantId = this.dataset.variantId;
+        var variantTitle = this.dataset.variantTitle;
+
+        if (confirm('Declare "' + variantTitle + '" as the winner? This will complete the experiment.')) {
+            Craft.sendActionRequest('POST', 'wink/reports/declare-winner', {
+                data: {
+                    experimentId: {{ experiment.id }},
+                    winnerVariantId: variantId,
+                }
+            }).then(function() {
+                location.reload();
+            }).catch(function(error) {
+                Craft.cp.displayError(error?.response?.data?.message || 'Could not declare winner.');
+            });
+        }
+    });
+});
+{% endjs %}

@@ -1,0 +1,9 @@
+{% extends '_layouts/elementindex.twig' %}
+
+{% set title = 'Experiments'|t('wink') %}
+{% set elementType = 'jholt\\wink\\elements\\Experiment' %}
+{% set selectedSubnavItem = 'experiments' %}
+
+{% block actionButton %}
+    <a href="{{ cpUrl('wink/experiments/new') }}" class="btn submit">{{ 'New Experiment'|t('wink') }}</a>
+{% endblock %}
