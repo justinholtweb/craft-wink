@@ -4,7 +4,7 @@
 
 Wink is a commercial A/B testing and experimentation plugin for **Craft CMS 5.x**. It lets content editors create experiments with content variants, track conversions, and determine statistical winners from the Craft Control Panel.
 
-- **Namespace**: `jholt\wink`
+- **Namespace**: `justinholtweb\wink`
 - **Package**: `jholt/craft-wink`
 - **PHP**: 8.2+
 - **Framework**: Craft CMS 5.x (built on Yii 2)
