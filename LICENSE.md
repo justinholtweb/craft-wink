@@ -1,20 +1,21 @@
+
 # The Craft License
 
-Copyright © J Holt
+Copyright © Justinholt.com Incorporated. All rights reserved.
 
 Permission is hereby granted to any person obtaining a copy of this software
-(the "Software") to use, copy, modify, merge, publish and/or distribute copies
+(the “Software”) to use, copy, modify, merge, publish and/or distribute copies
 of the Software, and to permit persons to whom the Software is furnished to do
 so, subject to the following conditions:
 
-1. **Don't plagiarize.** The above copyright notice and this license shall be
+1. **Don’t plagiarize.** The above copyright notice and this license shall be
    included in all copies or substantial portions of the Software.
 
-2. **Don't use the same license on more than one project.** Each licensed copy
+2. **Don’t use the same license on more than one project.** Each licensed copy
    of the Software shall be actively installed in no more than one production
    environment at a time.
 
-3. **Don't mess with the licensing features.** Software features related to
+3. **Don’t mess with the licensing features.** Software features related to
    licensing shall not be altered or circumvented in any way, including (but
    not limited to) license validation, payment prompts, feature restrictions,
    and update eligibility.
@@ -33,7 +34,7 @@ performance of the Software and any modifications made or obtained to it,
 including liability for actual and consequential harm, such as loss or
 corruption of data, and any necessary service, repair, or correction.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER

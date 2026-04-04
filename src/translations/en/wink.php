@@ -22,7 +22,7 @@ return [
 
     // Experiment editor
     'Experiment saved.' => 'Experiment saved.',
-    'Couldn't save experiment.' => 'Couldn't save experiment.',
+    'Couldn\'t save experiment.' => 'Couldn\'t save experiment.',
     'Could not update experiment status.' => 'Could not update experiment status.',
     'Experiment status updated.' => 'Experiment status updated.',
     'Experiment deleted.' => 'Experiment deleted.',
@@ -87,7 +87,7 @@ return [
     'Wink Settings' => 'Wink Settings',
     'Settings' => 'Settings',
     'Settings saved.' => 'Settings saved.',
-    'Couldn't save settings.' => 'Couldn't save settings.',
+    'Couldn\'t save settings.' => 'Couldn\'t save settings.',
     'Enable Tracking' => 'Enable Tracking',
     'Globally enable or disable event tracking.' => 'Globally enable or disable event tracking.',
     'Respect Do Not Track' => 'Respect Do Not Track',
