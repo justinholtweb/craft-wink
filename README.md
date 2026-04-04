@@ -10,7 +10,7 @@ A/B testing and experimentation plugin for Craft CMS 5. Create experiments with 
 ## Installation
 
 ```bash
-composer require jholt/craft-wink
+composer require justinholtweb/craft-wink
 php craft plugin/install wink
 ```
 
