@@ -1,6 +1,6 @@
 <?php
 
-namespace jholt\wink;
+namespace justinholtweb\wink;
 
 use Craft;
 use craft\base\Model;
@@ -10,14 +10,14 @@ use craft\events\RegisterUrlRulesEvent;
 use craft\services\Elements;
 use craft\web\twig\variables\CraftVariable;
 use craft\web\UrlManager;
-use jholt\wink\elements\Experiment;
-use jholt\wink\models\Settings;
-use jholt\wink\services\AssignmentService;
-use jholt\wink\services\ExperimentService;
-use jholt\wink\services\StatsService;
-use jholt\wink\services\TrackingService;
-use jholt\wink\twig\WinkTwigExtension;
-use jholt\wink\variables\WinkVariable;
+use justinholtweb\wink\elements\Experiment;
+use justinholtweb\wink\models\Settings;
+use justinholtweb\wink\services\AssignmentService;
+use justinholtweb\wink\services\ExperimentService;
+use justinholtweb\wink\services\StatsService;
+use justinholtweb\wink\services\TrackingService;
+use justinholtweb\wink\twig\WinkTwigExtension;
+use justinholtweb\wink\variables\WinkVariable;
 use yii\base\Event;
 
 /**

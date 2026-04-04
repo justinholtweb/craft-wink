@@ -1,9 +1,9 @@
 <?php
 
-namespace jholt\wink\models;
+namespace justinholtweb\wink\models;
 
 use craft\base\Model;
-use jholt\wink\enums\GoalType;
+use justinholtweb\wink\enums\GoalType;
 
 class Goal extends Model
 {

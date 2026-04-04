@@ -1,9 +1,9 @@
 <?php
 
-namespace jholt\wink\elements\db;
+namespace justinholtweb\wink\elements\db;
 
 use craft\elements\db\ElementQuery;
-use jholt\wink\enums\ExperimentStatus;
+use justinholtweb\wink\enums\ExperimentStatus;
 
 class ExperimentQuery extends ElementQuery
 {

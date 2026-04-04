@@ -1,6 +1,6 @@
 <?php
 
-namespace jholt\wink\twig;
+namespace justinholtweb\wink\twig;
 
 use Twig\Token;
 use Twig\TokenParser\AbstractTokenParser;

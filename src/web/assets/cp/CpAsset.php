@@ -1,6 +1,6 @@
 <?php
 
-namespace jholt\wink\web\assets\cp;
+namespace justinholtweb\wink\web\assets\cp;
 
 use craft\web\AssetBundle;
 use craft\web\assets\cp\CpAsset as CraftCpAsset;

@@ -1,16 +1,16 @@
 <?php
 
-namespace jholt\wink\services;
+namespace justinholtweb\wink\services;
 
 use Craft;
 use craft\helpers\DateTimeHelper;
-use jholt\wink\elements\Experiment;
-use jholt\wink\enums\ExperimentStatus;
-use jholt\wink\enums\GoalType;
-use jholt\wink\models\Goal;
-use jholt\wink\models\Variant;
-use jholt\wink\records\GoalRecord;
-use jholt\wink\records\VariantRecord;
+use justinholtweb\wink\elements\Experiment;
+use justinholtweb\wink\enums\ExperimentStatus;
+use justinholtweb\wink\enums\GoalType;
+use justinholtweb\wink\models\Goal;
+use justinholtweb\wink\models\Variant;
+use justinholtweb\wink\records\GoalRecord;
+use justinholtweb\wink\records\VariantRecord;
 use yii\base\Component;
 
 class ExperimentService extends Component

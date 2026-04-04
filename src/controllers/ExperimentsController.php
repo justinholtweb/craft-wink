@@ -1,14 +1,14 @@
 <?php
 
-namespace jholt\wink\controllers;
+namespace justinholtweb\wink\controllers;
 
 use Craft;
 use craft\web\Controller;
-use jholt\wink\elements\Experiment;
-use jholt\wink\enums\GoalType;
-use jholt\wink\models\Goal;
-use jholt\wink\models\Variant;
-use jholt\wink\Plugin;
+use justinholtweb\wink\elements\Experiment;
+use justinholtweb\wink\enums\GoalType;
+use justinholtweb\wink\models\Goal;
+use justinholtweb\wink\models\Variant;
+use justinholtweb\wink\Plugin;
 use yii\web\NotFoundHttpException;
 use yii\web\Response;
 

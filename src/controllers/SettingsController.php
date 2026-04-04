@@ -1,10 +1,10 @@
 <?php
 
-namespace jholt\wink\controllers;
+namespace justinholtweb\wink\controllers;
 
 use Craft;
 use craft\web\Controller;
-use jholt\wink\Plugin;
+use justinholtweb\wink\Plugin;
 use yii\web\Response;
 
 class SettingsController extends Controller

@@ -1,5 +1,5 @@
 {
-    "name": "jholt/craft-wink",
+    "name": "justinholtweb/craft-wink",
     "description": "A/B testing & experimentation plugin for Craft CMS",
     "type": "craft-plugin",
     "version": "1.0.0",
@@ -31,7 +31,7 @@
     },
     "autoload": {
         "psr-4": {
-            "jholt\\wink\\": "src/"
+            "justinholtweb\\wink\\": "src/"
         }
     },
     "extra": {
@@ -39,7 +39,7 @@
         "handle": "wink",
         "hasCpSettings": true,
         "hasCpSection": true,
-        "class": "jholt\\wink\\Plugin",
+        "class": "justinholtweb\\wink\\Plugin",
         "developer": "J Holt",
         "developerUrl": "https://jholt.dev",
         "documentationUrl": "https://github.com/jholt/craft-wink/blob/main/README.md",

@@ -1,6 +1,6 @@
 <?php
 
-namespace jholt\wink\migrations;
+namespace justinholtweb\wink\migrations;
 
 use craft\db\Migration;
 

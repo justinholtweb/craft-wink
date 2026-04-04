@@ -1,11 +1,11 @@
 <?php
 
-namespace jholt\wink\services;
+namespace justinholtweb\wink\services;
 
 use Craft;
-use jholt\wink\elements\Experiment;
-use jholt\wink\models\Variant;
-use jholt\wink\Plugin;
+use justinholtweb\wink\elements\Experiment;
+use justinholtweb\wink\models\Variant;
+use justinholtweb\wink\Plugin;
 use yii\base\Component;
 
 class AssignmentService extends Component

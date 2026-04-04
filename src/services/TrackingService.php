@@ -1,12 +1,12 @@
 <?php
 
-namespace jholt\wink\services;
+namespace justinholtweb\wink\services;
 
 use Craft;
 use craft\db\Query;
 use craft\helpers\DateTimeHelper;
-use jholt\wink\Plugin;
-use jholt\wink\records\EventRecord;
+use justinholtweb\wink\Plugin;
+use justinholtweb\wink\records\EventRecord;
 use yii\base\Component;
 
 class TrackingService extends Component

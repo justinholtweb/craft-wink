@@ -1,6 +1,6 @@
 <?php
 
-namespace jholt\wink\models;
+namespace justinholtweb\wink\models;
 
 use craft\base\Model;
 

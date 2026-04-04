@@ -1,6 +1,6 @@
 <?php
 
-namespace jholt\wink\records;
+namespace justinholtweb\wink\records;
 
 use craft\db\ActiveRecord;
 

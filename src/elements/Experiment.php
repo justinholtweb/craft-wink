@@ -1,6 +1,6 @@
 <?php
 
-namespace jholt\wink\elements;
+namespace justinholtweb\wink\elements;
 
 use Craft;
 use craft\base\Element;
@@ -9,12 +9,12 @@ use craft\elements\actions\Restore;
 use craft\elements\db\ElementQueryInterface;
 use craft\helpers\Db;
 use craft\helpers\UrlHelper;
-use jholt\wink\elements\db\ExperimentQuery;
-use jholt\wink\enums\ExperimentStatus;
-use jholt\wink\models\Goal;
-use jholt\wink\models\Variant;
-use jholt\wink\Plugin;
-use jholt\wink\records\ExperimentRecord;
+use justinholtweb\wink\elements\db\ExperimentQuery;
+use justinholtweb\wink\enums\ExperimentStatus;
+use justinholtweb\wink\models\Goal;
+use justinholtweb\wink\models\Variant;
+use justinholtweb\wink\Plugin;
+use justinholtweb\wink\records\ExperimentRecord;
 
 class Experiment extends Element
 {

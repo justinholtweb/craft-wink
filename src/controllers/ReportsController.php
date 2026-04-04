@@ -1,11 +1,11 @@
 <?php
 
-namespace jholt\wink\controllers;
+namespace justinholtweb\wink\controllers;
 
 use Craft;
 use craft\web\Controller;
-use jholt\wink\elements\Experiment;
-use jholt\wink\Plugin;
+use justinholtweb\wink\elements\Experiment;
+use justinholtweb\wink\Plugin;
 use yii\web\NotFoundHttpException;
 use yii\web\Response;
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace jholt\wink\web\assets\tracking;
+namespace justinholtweb\wink\web\assets\tracking;
 
 use craft\web\AssetBundle;
 

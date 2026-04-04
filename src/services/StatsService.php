@@ -1,12 +1,12 @@
 <?php
 
-namespace jholt\wink\services;
+namespace justinholtweb\wink\services;
 
 use craft\db\Query;
-use jholt\wink\elements\Experiment;
-use jholt\wink\models\ExperimentReport;
-use jholt\wink\models\VariantReport;
-use jholt\wink\Plugin;
+use justinholtweb\wink\elements\Experiment;
+use justinholtweb\wink\models\ExperimentReport;
+use justinholtweb\wink\models\VariantReport;
+use justinholtweb\wink\Plugin;
 use yii\base\Component;
 
 class StatsService extends Component

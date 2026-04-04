@@ -1,6 +1,6 @@
 <?php
 
-namespace jholt\wink\enums;
+namespace justinholtweb\wink\enums;
 
 enum ExperimentStatus: string
 {

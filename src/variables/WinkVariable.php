@@ -1,10 +1,10 @@
 <?php
 
-namespace jholt\wink\variables;
+namespace justinholtweb\wink\variables;
 
-use jholt\wink\elements\db\ExperimentQuery;
-use jholt\wink\elements\Experiment;
-use jholt\wink\Plugin;
+use justinholtweb\wink\elements\db\ExperimentQuery;
+use justinholtweb\wink\elements\Experiment;
+use justinholtweb\wink\Plugin;
 
 class WinkVariable
 {
