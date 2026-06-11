@@ -212,25 +212,25 @@
 
             {% set statusEnum = experiment.experimentStatusEnum %}
 
-            {% if statusEnum.canTransitionTo(constant('jholt\\wink\\enums\\ExperimentStatus::Running')) %}
+            {% if statusEnum.canTransitionTo(constant('justinholtweb\\wink\\enums\\ExperimentStatus::Running')) %}
                 <div class="data">
                     <button class="btn submit small wink-status-btn" data-action="start">{{ 'Start'|t('wink') }}</button>
                 </div>
             {% endif %}
 
-            {% if statusEnum.canTransitionTo(constant('jholt\\wink\\enums\\ExperimentStatus::Paused')) %}
+            {% if statusEnum.canTransitionTo(constant('justinholtweb\\wink\\enums\\ExperimentStatus::Paused')) %}
                 <div class="data">
                     <button class="btn small wink-status-btn" data-action="pause">{{ 'Pause'|t('wink') }}</button>
                 </div>
             {% endif %}
 
-            {% if statusEnum.canTransitionTo(constant('jholt\\wink\\enums\\ExperimentStatus::Completed')) %}
+            {% if statusEnum.canTransitionTo(constant('justinholtweb\\wink\\enums\\ExperimentStatus::Completed')) %}
                 <div class="data">
                     <button class="btn small wink-status-btn" data-action="complete">{{ 'Complete'|t('wink') }}</button>
                 </div>
             {% endif %}
 
-            {% if statusEnum.canTransitionTo(constant('jholt\\wink\\enums\\ExperimentStatus::Archived')) %}
+            {% if statusEnum.canTransitionTo(constant('justinholtweb\\wink\\enums\\ExperimentStatus::Archived')) %}
                 <div class="data">
                     <button class="btn small wink-status-btn" data-action="archive">{{ 'Archive'|t('wink') }}</button>
                 </div>

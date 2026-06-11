@@ -33,7 +33,7 @@ class WinkNode extends Node
     {
         $compiler
             ->addDebugInfo($this)
-            ->write('$_winkPlugin = \\jholt\\wink\\Plugin::getInstance();' . "\n")
+            ->write('$_winkPlugin = \\justinholtweb\\wink\\Plugin::getInstance();' . "\n")
             ->write('$_winkExperiment = $_winkPlugin->experiments->getRunningExperiment(' . var_export($this->experimentHandle, true) . ');' . "\n")
             ->write('if ($_winkExperiment) {' . "\n")
             ->indent()

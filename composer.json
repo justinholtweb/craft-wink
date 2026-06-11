@@ -2,7 +2,7 @@
     "name": "justinholtweb/craft-wink",
     "description": "A/B testing & experimentation plugin for Craft CMS",
     "type": "craft-plugin",
-    "version": "1.0.0",
+    "version": "5.0.0",
     "keywords": [
         "craft",
         "cms",
@@ -16,14 +16,13 @@
     "license": "proprietary",
     "authors": [
         {
-            "name": "J Holt",
-            "homepage": "https://github.com/jholt"
+            "name": "Justin Holt",
+            "homepage": "https://justinholt.com"
         }
     ],
     "support": {
-        "email": "support@jholt.dev",
-        "docs": "https://github.com/jholt/craft-wink/blob/main/README.md",
-        "issues": "https://github.com/jholt/craft-wink/issues"
+        "docs": "https://github.com/justinholtweb/craft-wink/blob/main/README.md",
+        "issues": "https://github.com/justinholtweb/craft-wink/issues"
     },
     "require": {
         "php": "^8.2",
@@ -40,10 +39,10 @@
         "hasCpSettings": true,
         "hasCpSection": true,
         "class": "justinholtweb\\wink\\Plugin",
-        "developer": "J Holt",
-        "developerUrl": "https://jholt.dev",
-        "documentationUrl": "https://github.com/jholt/craft-wink/blob/main/README.md",
-        "changelogUrl": "https://raw.githubusercontent.com/jholt/craft-wink/main/CHANGELOG.md"
+        "developer": "Justin Holt",
+        "developerUrl": "https://justinholt.com",
+        "documentationUrl": "https://github.com/justinholtweb/craft-wink/blob/main/README.md",
+        "changelogUrl": "https://raw.githubusercontent.com/justinholtweb/craft-wink/main/CHANGELOG.md"
     },
     "minimum-stability": "dev",
     "prefer-stable": true
