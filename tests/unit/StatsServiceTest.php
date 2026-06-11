@@ -125,11 +125,12 @@ final class StatsServiceTest extends TestCase
 
     public function testWilsonIntervalIsOrderedAndContainsPointEstimate(): void
     {
+        $point = 30 / 100;
         [$lower, $upper] = $this->stats->wilsonScoreInterval(30, 100);
-        $this->assertLessThanOrEqual($upper, $lower);
-        $this->assertLessThanOrEqual(0.30, $upper);
-        $this->assertGreaterThanOrEqual(0.30, $lower === 0.0 ? 0.30 : $upper); // sanity
-        $this->assertTrue($lower <= 0.30 && 0.30 <= $upper);
+
+        $this->assertLessThanOrEqual($upper, $lower, 'lower bound must not exceed upper bound');
+        $this->assertLessThanOrEqual($point, $lower, 'lower bound must sit at or below the point estimate');
+        $this->assertGreaterThanOrEqual($point, $upper, 'upper bound must sit at or above the point estimate');
     }
 
     public function testHigherConfidenceWidensTheInterval(): void

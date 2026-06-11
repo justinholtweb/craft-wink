@@ -75,7 +75,7 @@ class Experiment extends Element
         return 'experiment';
     }
 
-    protected static function defineSources(string $context = null): array
+    protected static function defineSources(?string $context = null): array
     {
         $sources = [
             [
@@ -131,7 +131,7 @@ class Experiment extends Element
         return ['handle', 'description'];
     }
 
-    protected static function defineActions(string $source = null): array
+    protected static function defineActions(?string $source = null): array
     {
         return [
             Delete::class,

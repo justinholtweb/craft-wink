@@ -5,3 +5,6 @@
 *.cache
 .phpunit.result.cache
 .claude/
+
+# Plugin: do not commit the resolved lockfile
+composer.lock
