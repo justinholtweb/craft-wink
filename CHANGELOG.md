@@ -1,5 +1,16 @@
 # Release Notes for Wink
 
+## 5.0.2 - 2026-06-11
+
+### Fixed
+- PHP 8.4 compatibility: `Experiment::defineSources()` and `defineActions()` now declare their parameters as explicitly nullable (`?string`), resolving an implicit-nullable deprecation that becomes a fatal error in PHP 9.0.
+
+### Added
+- PHPUnit unit test suite covering the statistical engine (two-proportion z-test, Wilson score interval) and deterministic variant assignment.
+
+### Changed
+- Plugin schema version aligned to 5.0.0.
+
 ## 5.0.0 - 2026-05-02
 
 ### Added
