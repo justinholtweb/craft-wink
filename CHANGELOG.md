@@ -1,5 +1,10 @@
 # Release Notes for Wink
 
+## 5.0.4 - 2026-06-11
+
+### Fixed
+- Fatal `ParseError` in `ExperimentsController` and `SettingsController` caused by an unescaped apostrophe in the "Couldn't save…" error messages, which prevented the plugin from loading.
+
 ## 5.0.3 - 2026-06-11
 
 ### Fixed

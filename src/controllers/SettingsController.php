@@ -42,7 +42,7 @@ class SettingsController extends Controller
         $settings->minimumSampleSize = (int)$request->getBodyParam('minimumSampleSize', 100);
 
         if (!Craft::$app->getPlugins()->savePluginSettings(Plugin::getInstance(), $settings->toArray())) {
-            Craft::$app->getSession()->setError(Craft::t('wink', 'Couldn't save settings.'));
+            Craft::$app->getSession()->setError(Craft::t('wink', 'Couldn\'t save settings.'));
             return null;
         }
 

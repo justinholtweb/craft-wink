@@ -68,7 +68,7 @@ class ExperimentsController extends Controller
         }
 
         if (!Plugin::getInstance()->experiments->saveExperiment($experiment)) {
-            Craft::$app->getSession()->setError(Craft::t('wink', 'Couldn't save experiment.'));
+            Craft::$app->getSession()->setError(Craft::t('wink', 'Couldn\'t save experiment.'));
             Craft::$app->getUrlManager()->setRouteParams([
                 'experiment' => $experiment,
             ]);
