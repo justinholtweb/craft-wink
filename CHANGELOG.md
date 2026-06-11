@@ -1,6 +1,6 @@
 # Release Notes for Wink
 
-## 5.0.2 - 2026-06-11
+## 5.0.3 - 2026-06-11
 
 ### Fixed
 - PHP 8.4 compatibility: `Experiment::defineSources()` and `defineActions()` now declare their parameters as explicitly nullable (`?string`), resolving an implicit-nullable deprecation that becomes a fatal error in PHP 9.0.
