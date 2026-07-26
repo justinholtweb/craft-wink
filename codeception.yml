@@ -1,0 +1,23 @@
+actor: Tester
+paths:
+  tests: tests
+  output: tests/_output
+  data: tests/_data
+  support: tests/_support
+  envs: tests/_envs
+bootstrap: _bootstrap.php
+params:
+  - tests/.env
+modules:
+  config:
+    \craft\test\Craft:
+      configFile: 'tests/_craft/config/test.php'
+      entryUrl: 'https://craft-wink.ddev.site/index.php'
+      projectConfig: {}
+      migrations: []
+      plugins:
+        - class: justinholtweb\wink\Plugin
+          handle: wink
+      cleanup: true
+      transaction: true
+      dbSetup: {clean: true, setupCraft: true}

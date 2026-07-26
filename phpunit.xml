@@ -13,7 +13,12 @@
     </testsuites>
     <source>
         <include>
-            <directory>src/services</directory>
+            <directory>src</directory>
         </include>
+        <exclude>
+            <directory>src/templates</directory>
+            <directory>src/web/assets</directory>
+            <directory>src/translations</directory>
+        </exclude>
     </source>
 </phpunit>

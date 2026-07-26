@@ -220,8 +220,12 @@ class ExperimentService extends Component
      */
     public function getGoalsByExperimentId(int $experimentId): array
     {
+        // Order explicitly: without it MySQL returns rows in index order
+        // (experimentId, handle), so goals would appear alphabetically rather
+        // than in the order the author created them.
         $records = GoalRecord::find()
             ->where(['experimentId' => $experimentId])
+            ->orderBy(['id' => SORT_ASC])
             ->all();
 
         return array_map(fn(GoalRecord $record) => new Goal([

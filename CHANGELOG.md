@@ -1,5 +1,19 @@
 # Release Notes for Wink
 
+## 5.0.5 - 2026-07-26
+
+### Fixed
+- Element index columns (status, traffic %, variant count) rendered blank or raw. The overridden method was renamed from `tableAttributeHtml()` to `attributeHtml()` for Craft 5, which had silently disabled it.
+- Winner determination could declare a significantly *worse* variant the winner. The two-proportion z-test is two-tailed, so significance alone doesn't imply improvement — a variant must now actually beat the control to win.
+- Visitor IDs were unstable within a single request. Each call to `getVisitorId()` re-read the request cookie and minted a fresh UUID, scattering one visitor's assignments and impressions across throwaway IDs whenever a page contained more than one experiment. The ID is now memoized per request.
+- Conversion goals are returned in a stable, author-defined order instead of alphabetically. This also fixes the wrong goal being deleted when goals were re-saved.
+
+### Added
+- Codeception integration test suite running against Craft's test framework (element CRUD, queries, services, tracking, report generation, Twig rendering), plus expanded PHPUnit unit coverage (enums, the `{% experiment %}` tag compiler, PSR-4 layout). Includes a DDEV environment and `ddev test` runner.
+
+### Changed
+- Moved `VariantReport` into its own file (`src/models/VariantReport.php`) to comply with PSR-4; previously it was only loadable as a side effect of loading `ExperimentReport`.
+
 ## 5.0.4 - 2026-06-11
 
 ### Fixed

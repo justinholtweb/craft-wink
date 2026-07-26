@@ -234,6 +234,14 @@ class StatsService extends Component
     {
         $confidenceLevel = $threshold / 100;
 
+        $control = null;
+        foreach ($report->variants as $vr) {
+            if ($vr->isControl) {
+                $control = $vr;
+                break;
+            }
+        }
+
         $bestVariant = null;
         $bestConfidence = 0;
 
@@ -243,6 +251,13 @@ class StatsService extends Component
             }
 
             if ($vr->impressions < $minSample) {
+                continue;
+            }
+
+            // The z-test is two-tailed, so a significant result only means the
+            // rates differ — not that this variant is better. A variant that
+            // loses to the control must never be declared the winner.
+            if ($control !== null && $vr->conversionRate <= $control->conversionRate) {
                 continue;
             }
 

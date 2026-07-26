@@ -8,3 +8,13 @@
 
 # Plugin: do not commit the resolved lockfile
 composer.lock
+
+# Test artifacts
+/cpresources/
+/tests/_output/
+/tests/_support/_generated/
+/tests/_craft/storage/*
+!/tests/_craft/storage/runtime/
+/tests/_craft/storage/runtime/*
+!/tests/_craft/storage/runtime/.gitkeep
+/tests/_craft/config/project/

@@ -137,6 +137,45 @@ Plugin::getInstance()->assignment   // AssignmentService
 4. Update `ExperimentQuery::beforePrepare()` if it's on experiments
 5. Bump `Plugin::$schemaVersion`
 
+## Running Tests
+
+The plugin ships a DDEV environment (PHP 8.3 + MariaDB 10.11) because it has no
+host PHP requirement of its own. From the repo root:
+
+```bash
+ddev start
+ddev composer install
+ddev test              # both suites
+ddev test unit         # PHPUnit only
+ddev test integration  # Codeception only
+```
+
+Two suites, deliberately separate:
+
+- **`tests/unit/`** — plain PHPUnit, no Craft boot. Fast (<1s). Covers the
+  statistics engine, assignment hashing, enums, PSR-4 layout, and the
+  `{% experiment %}` tag's compiled PHP output.
+- **`tests/integration/`** — Codeception driving Craft's own test framework
+  (`\craft\test\Craft`). Boots a real Craft app against the `craft_test`
+  database, installs the plugin, and runs each test in a rolled-back
+  transaction. Covers element CRUD, element queries, services, tracking, report
+  generation, and Twig rendering.
+
+Integration tests extend `tests/integration/WinkTestCase.php`, which provides
+`createExperiment()`, `addVariants()`, `addGoals()`, `seedEvents()`,
+`withSettings()`, `setClientIp()` and `setRequestCookie()`.
+
+Notes on the harness:
+
+- Test files must end in `Test.php` or Codeception won't collect them.
+- Under CLI, Yii reports the request as a *console* request, which makes
+  `TrackingService` skip IP/URL capture. `setClientIp()` flips it to web mode.
+- Plugin settings live on the plugin instance and survive the per-test
+  transaction rollback, so change them via `withSettings()` (which restores
+  them in `tearDown`).
+- DB credentials come from `tests/.env` (DDEV container-local values, not
+  secrets).
+
 ## Testing Considerations
 
 - `TrackingController` allows anonymous access and disables CSRF — be careful with changes
@@ -144,3 +183,7 @@ Plugin::getInstance()->assignment   // AssignmentService
 - `StatsService::normalCdfComplement()` is a math approximation — verify against known z-tables if modifying
 - The `{% experiment %}` Twig tag compiles to raw PHP in `WinkNode` — test compiled output carefully
 - Impression dedup is per-visitor-per-experiment-per-day in `TrackingService::recordImpression()`
+- `AssignmentService::getVisitorId()` memoizes per request — a newly minted ID only exists on the *response* cookie, so re-reading the request cookie would mint a new one on every call
+- `StatsService` winner selection requires a variant to actually *beat* the control; the z-test is two-tailed, so significance alone doesn't imply improvement
+- Element index columns render through `attributeHtml()` (Craft 5 renamed it from `tableAttributeHtml()`, which is now silently ignored)
+- Every class needs its own PSR-4 file — `Psr4ComplianceTest` enforces this

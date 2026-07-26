@@ -2,7 +2,7 @@
     "name": "justinholtweb/craft-wink",
     "description": "A/B testing & experimentation plugin for Craft CMS",
     "type": "craft-plugin",
-    "version": "5.0.4",
+    "version": "5.0.5",
     "keywords": [
         "craft",
         "cms",
@@ -29,7 +29,12 @@
         "craftcms/cms": "^5.0.0"
     },
     "require-dev": {
-        "phpunit/phpunit": "^10.5"
+        "phpunit/phpunit": "^10.5",
+        "codeception/codeception": "^5.2",
+        "codeception/module-asserts": "^3.0",
+        "codeception/module-yii2": "^1.1.9",
+        "codeception/module-phpbrowser": "^3.0",
+        "vlucas/phpdotenv": "^5.4"
     },
     "autoload": {
         "psr-4": {
@@ -42,7 +47,12 @@
         }
     },
     "scripts": {
-        "test": "phpunit"
+        "test": [
+            "@test:unit",
+            "@test:integration"
+        ],
+        "test:unit": "phpunit",
+        "test:integration": "codecept run integration"
     },
     "config": {
         "allow-plugins": {

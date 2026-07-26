@@ -244,7 +244,7 @@ class Experiment extends Element
 
     // Table attribute values
 
-    protected function tableAttributeHtml(string $attribute): string
+    protected function attributeHtml(string $attribute): string
     {
         return match ($attribute) {
             'experimentStatus' => sprintf(
@@ -254,7 +254,7 @@ class Experiment extends Element
             ),
             'trafficPercent' => $this->trafficPercent . '%',
             'variantCount' => (string)$this->getVariantCount(),
-            default => parent::tableAttributeHtml($attribute),
+            default => parent::attributeHtml($attribute),
         };
     }
 

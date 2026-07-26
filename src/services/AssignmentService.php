@@ -11,10 +11,25 @@ use yii\base\Component;
 class AssignmentService extends Component
 {
     /**
+     * The visitor ID resolved for the current request.
+     */
+    private ?string $_visitorId = null;
+
+    /**
      * Get or create a visitor ID from cookies.
+     *
+     * The result is memoized for the request: a newly generated ID only exists
+     * on the *response* cookie, so re-reading the request cookie would mint a
+     * fresh ID on every call. That would scatter a single visitor's
+     * assignments and impressions across several throwaway IDs whenever a page
+     * resolves more than one experiment.
      */
     public function getVisitorId(): string
     {
+        if ($this->_visitorId !== null) {
+            return $this->_visitorId;
+        }
+
         $settings = Plugin::getInstance()->getSettings();
         $cookieName = $settings->cookieName;
 
@@ -25,7 +40,7 @@ class AssignmentService extends Component
             $this->setVisitorCookie($visitorId);
         }
 
-        return $visitorId;
+        return $this->_visitorId = $visitorId;
     }
 
     /**

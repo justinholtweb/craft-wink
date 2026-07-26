@@ -1,0 +1,26 @@
+#!/bin/bash
+
+## Description: Run the Wink test suites
+## Usage: test [unit|integration]
+## Example: "ddev test" runs everything, "ddev test unit" runs only PHPUnit
+
+set -e
+cd /var/www/html
+
+case "${1:-all}" in
+  unit)
+    vendor/bin/phpunit
+    ;;
+  integration)
+    vendor/bin/codecept run integration
+    ;;
+  all)
+    vendor/bin/phpunit
+    echo
+    vendor/bin/codecept run integration
+    ;;
+  *)
+    echo "Unknown suite '$1'. Use: unit, integration, or omit for both." >&2
+    exit 1
+    ;;
+esac
