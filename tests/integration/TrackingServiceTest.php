@@ -110,6 +110,8 @@ final class TrackingServiceTest extends WinkTestCase
         $this->fixture();
         $goals = $this->addGoals($this->experiment, [['handle' => 'signup', 'isPrimary' => true]]);
 
+        $this->tracking()->recordImpression($this->experiment->id, $this->variants[0]->id, 'visitor-1');
+
         $this->assertTrue($this->tracking()->recordConversion(
             $this->experiment->id,
             $this->variants[0]->id,
@@ -125,11 +127,48 @@ final class TrackingServiceTest extends WinkTestCase
         $this->fixture();
 
         // Conversions are intentionally repeatable — a visitor can convert more
-        // than once (e.g. multiple purchases).
+        // than once (e.g. multiple purchases). The report's rates count each
+        // converted visitor once; see testRepeatConversionsCountOnceInTheRate.
+        $this->tracking()->recordImpression($this->experiment->id, $this->variants[0]->id, 'visitor-1');
         $this->tracking()->recordConversion($this->experiment->id, $this->variants[0]->id, null, 'visitor-1');
         $this->tracking()->recordConversion($this->experiment->id, $this->variants[0]->id, null, 'visitor-1');
 
         $this->assertSame(2, $this->tracking()->getConversionCount($this->experiment->id));
+    }
+
+    public function testAConversionWithoutAnImpressionIsRefused(): void
+    {
+        $this->fixture();
+
+        $this->assertFalse($this->tracking()->recordConversion($this->experiment->id, $this->variants[0]->id, null, 'never-saw-it'));
+        $this->assertSame(0, $this->tracking()->getConversionCount($this->experiment->id));
+    }
+
+    public function testRepeatConversionsCountOnceInTheRate(): void
+    {
+        $this->fixture();
+
+        $this->tracking()->recordImpression($this->experiment->id, $this->variants[0]->id, 'visitor-1');
+        for ($i = 0; $i < 5; $i++) {
+            $this->tracking()->recordConversion($this->experiment->id, $this->variants[0]->id, null, 'visitor-1');
+        }
+
+        $this->assertSame(5, $this->tracking()->getConversionCount($this->experiment->id));
+        $this->assertSame(1, $this->tracking()->getConvertedVisitorCount($this->experiment->id));
+
+        $report = \justinholtweb\wink\Plugin::getInstance()->stats->getExperimentReport($this->experiment);
+        foreach ($report->variants as $vr) {
+            $this->assertLessThanOrEqual(1.0, $vr->conversionRate, $vr->variantHandle);
+        }
+    }
+
+    public function testAnonymizedAddressesKeepNoHostBits(): void
+    {
+        $stored = [\justinholtweb\wink\services\TrackingService::class, 'storedAddress'];
+
+        $this->assertSame('203.0.113.0', $stored('203.0.113.77', true));
+        $this->assertSame('2001:db8:85a3::', $stored('2001:db8:85a3:8d3:1319:8a2e:370:7348', true));
+        $this->assertSame('2001:db8:85a3:8d3:1319:8a2e:370:7348', $stored('2001:db8:85a3:8d3:1319:8a2e:370:7348', false));
     }
 
     public function testConversionCountFiltersByGoal(): void
@@ -139,6 +178,10 @@ final class TrackingServiceTest extends WinkTestCase
             ['handle' => 'signup', 'isPrimary' => true],
             ['handle' => 'purchase'],
         ]);
+
+        foreach (['v1', 'v2', 'v3'] as $visitor) {
+            $this->tracking()->recordImpression($this->experiment->id, $this->variants[0]->id, $visitor);
+        }
 
         $this->tracking()->recordConversion($this->experiment->id, $this->variants[0]->id, $goals[0]->id, 'v1');
         $this->tracking()->recordConversion($this->experiment->id, $this->variants[0]->id, $goals[1]->id, 'v2');

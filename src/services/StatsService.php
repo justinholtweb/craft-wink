@@ -33,7 +33,10 @@ class StatsService extends Component
             $vr->variantHandle = $variant->handle;
             $vr->isControl = $variant->isControl;
             $vr->impressions = $tracking->getImpressionCount($experiment->id, $variant->id);
-            $vr->conversions = $tracking->getConversionCount($experiment->id, $variant->id, $goalId);
+            // Converted visitors, not conversion events: the rate, its interval and the z-test all
+            // assume each impression converts at most once. Before 5.0.6 repeat conversions were
+            // counted here, so one visitor could carry a variant past 100%.
+            $vr->conversions = $tracking->getConvertedVisitorCount($experiment->id, $variant->id, $goalId);
             $vr->conversionRate = $vr->impressions > 0
                 ? $vr->conversions / $vr->impressions
                 : 0.0;
@@ -186,7 +189,7 @@ class StatsService extends Component
             ->all();
 
         $conversionsQuery = (new Query())
-            ->select(['DATE(dateCreated) as date', 'COUNT(*) as count'])
+            ->select(['DATE(dateCreated) as date', 'COUNT(DISTINCT [[visitorId]]) as count'])
             ->from('{{%wink_events}}')
             ->where([
                 'experimentId' => $experimentId,

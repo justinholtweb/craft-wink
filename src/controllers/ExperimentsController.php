@@ -14,6 +14,17 @@ use yii\web\Response;
 
 class ExperimentsController extends Controller
 {
+    public function beforeAction($action): bool
+    {
+        if (!parent::beforeAction($action)) {
+            return false;
+        }
+
+        $this->requirePermission(Plugin::PERMISSION_MANAGE);
+
+        return true;
+    }
+
     public function actionIndex(): Response
     {
         return $this->renderTemplate('wink/experiments/_index');

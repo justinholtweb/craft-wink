@@ -187,3 +187,16 @@ Notes on the harness:
 - `StatsService` winner selection requires a variant to actually *beat* the control; the z-test is two-tailed, so significance alone doesn't imply improvement
 - Element index columns render through `attributeHtml()` (Craft 5 renamed it from `tableAttributeHtml()`, which is now silently ignored)
 - Every class needs its own PSR-4 file — `Psr4ComplianceTest` enforces this
+
+## Security model (5.0.6)
+
+- Permissions: `wink:manageExperiments` (experiments CRUD, status, declare winner — variant content
+  is raw HTML on the site) and `wink:viewReports`. Settings: `requireAdmin()` (+ allowAdminChanges
+  on save). `Experiment::canView/canSave/canDelete` mirror them.
+- `/wink/track` is anonymous: ≤ 25 events/request, type allowlist, unknown goals skipped,
+  conversion requires a prior impression, `TrackingService::withinBudget()` per address
+  (`getRemoteIP()` unless `trustedHosts` is set).
+- Stats rates use `getConvertedVisitorCount()` (distinct visitors), not conversion events.
+- Tests: `tests/harness/security.php` (15 checks over HTTP, plugin-testing harness) plus the
+  Codeception suite (`vendor/bin/codecept run integration`, in this repo's DDEV). Static analysis:
+  `docker exec -w /sites/craft-wink ddev-phpstan-runner-web bash -c 'vendor/bin/phpstan analyse --memory-limit=1G && vendor/bin/ecs check'`.

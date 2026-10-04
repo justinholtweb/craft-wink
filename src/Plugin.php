@@ -26,9 +26,19 @@ use yii\base\Event;
  * @property-read StatsService $stats
  * @property-read AssignmentService $assignment
  * @property-read Settings $settings
+ * @method Settings getSettings()
  */
 class Plugin extends BasePlugin
 {
+    /**
+     * Create, edit, run and delete experiments. Variant content is published on the front end as
+     * HTML, so this is a permission to put HTML — and script — on the site.
+     */
+    public const PERMISSION_MANAGE = 'wink:manageExperiments';
+
+    /** Read experiment reports. */
+    public const PERMISSION_REPORTS = 'wink:viewReports';
+
     public string $schemaVersion = '5.0.0';
     public bool $hasCpSettings = true;
     public bool $hasCpSection = true;
@@ -54,28 +64,63 @@ class Plugin extends BasePlugin
         $this->_registerSiteRoutes();
         $this->_registerVariables();
         $this->_registerTwigExtension();
+        $this->_registerPermissions();
     }
 
     public function getCpNavItem(): ?array
     {
         $item = parent::getCpNavItem();
         $item['label'] = 'Wink';
-        $item['subnav'] = [
-            'experiments' => [
+        $user = Craft::$app->getUser();
+        $item['subnav'] = [];
+
+        if ($user->checkPermission(self::PERMISSION_MANAGE)) {
+            $item['subnav']['experiments'] = [
                 'label' => Craft::t('wink', 'Experiments'),
                 'url' => 'wink/experiments',
-            ],
-            'reports' => [
+            ];
+        }
+
+        if ($user->checkPermission(self::PERMISSION_REPORTS)) {
+            $item['subnav']['reports'] = [
                 'label' => Craft::t('wink', 'Reports'),
                 'url' => 'wink/reports',
-            ],
-            'settings' => [
+            ];
+        }
+
+        if ($user->getIsAdmin()) {
+            $item['subnav']['settings'] = [
                 'label' => Craft::t('wink', 'Settings'),
                 'url' => 'wink/settings',
-            ],
-        ];
+            ];
+        }
 
         return $item;
+    }
+
+    /**
+     * Wink registered no permissions before 5.0.6, so its screens and actions were open to every
+     * control panel user.
+     */
+    private function _registerPermissions(): void
+    {
+        Event::on(
+            \craft\services\UserPermissions::class,
+            \craft\services\UserPermissions::EVENT_REGISTER_PERMISSIONS,
+            static function(\craft\events\RegisterUserPermissionsEvent $event) {
+                $event->permissions[] = [
+                    'heading' => 'Wink',
+                    'permissions' => [
+                        self::PERMISSION_MANAGE => [
+                            'label' => Craft::t('wink', 'Manage experiments (variant content is published on the site as HTML)'),
+                        ],
+                        self::PERMISSION_REPORTS => [
+                            'label' => Craft::t('wink', 'View experiment reports'),
+                        ],
+                    ],
+                ];
+            }
+        );
     }
 
     protected function createSettingsModel(): ?Model
@@ -96,7 +141,7 @@ class Plugin extends BasePlugin
         Event::on(
             Elements::class,
             Elements::EVENT_REGISTER_ELEMENT_TYPES,
-            function (RegisterComponentTypesEvent $event) {
+            function(RegisterComponentTypesEvent $event) {
                 $event->types[] = Experiment::class;
             }
         );
@@ -107,7 +152,7 @@ class Plugin extends BasePlugin
         Event::on(
             UrlManager::class,
             UrlManager::EVENT_REGISTER_CP_URL_RULES,
-            function (RegisterUrlRulesEvent $event) {
+            function(RegisterUrlRulesEvent $event) {
                 $event->rules['wink'] = 'wink/experiments/index';
                 $event->rules['wink/experiments'] = 'wink/experiments/index';
                 $event->rules['wink/experiments/new'] = 'wink/experiments/edit';
@@ -124,7 +169,7 @@ class Plugin extends BasePlugin
         Event::on(
             UrlManager::class,
             UrlManager::EVENT_REGISTER_SITE_URL_RULES,
-            function (RegisterUrlRulesEvent $event) {
+            function(RegisterUrlRulesEvent $event) {
                 $event->rules['wink/track'] = 'wink/tracking/track';
                 $event->rules['wink/pixel.gif'] = 'wink/tracking/pixel';
             }
@@ -136,7 +181,7 @@ class Plugin extends BasePlugin
         Event::on(
             CraftVariable::class,
             CraftVariable::EVENT_INIT,
-            function (Event $event) {
+            function(Event $event) {
                 /** @var CraftVariable $variable */
                 $variable = $event->sender;
                 $variable->set('wink', WinkVariable::class);

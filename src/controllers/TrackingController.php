@@ -9,6 +9,9 @@ use yii\web\Response;
 
 class TrackingController extends Controller
 {
+    /** Events accepted in one request. The tracker batches every few seconds; a page sends a handful. */
+    public const MAX_EVENTS = 25;
+
     // Allow anonymous access to tracking endpoints
     protected array|int|bool $allowAnonymous = ['track', 'pixel'];
 
@@ -41,6 +44,14 @@ class TrackingController extends Controller
             $events = [$request->getBodyParams()];
         }
 
+        // This endpoint is anonymous and its counts decide which variant wins, so it takes no
+        // more than a page would send. Before 5.0.6 it took any number of events of any kind,
+        // conversions included, and recorded each one.
+        if (!is_array($events)) {
+            return $this->asJson(['status' => 'ok', 'recorded' => 0]);
+        }
+        $events = array_slice(array_values(array_filter($events, 'is_array')), 0, self::MAX_EVENTS);
+
         $recorded = 0;
         $visitorId = Plugin::getInstance()->assignment->getVisitorId();
 
@@ -49,8 +60,14 @@ class TrackingController extends Controller
             $eventType = $event['type'] ?? 'impression';
             $goalHandle = $event['goal'] ?? null;
 
-            if (!$experimentHandle) {
+            if (!is_string($experimentHandle) || $experimentHandle === ''
+                || !in_array($eventType, ['impression', 'conversion'], true)
+                || ($goalHandle !== null && !is_string($goalHandle))) {
                 continue;
+            }
+
+            if (!Plugin::getInstance()->tracking->withinBudget()) {
+                break;
             }
 
             $experiment = Plugin::getInstance()->experiments->getRunningExperiment($experimentHandle);
@@ -64,15 +81,19 @@ class TrackingController extends Controller
             }
 
             $context = [
-                'url' => $event['url'] ?? null,
-                'referrer' => $event['referrer'] ?? null,
+                'url' => is_string($event['url'] ?? null) ? $event['url'] : null,
+                'referrer' => is_string($event['referrer'] ?? null) ? $event['referrer'] : null,
                 'metadata' => $event['metadata'] ?? null,
             ];
 
-            if ($eventType === 'conversion' && $goalHandle) {
-                $goal = Plugin::getInstance()->experiments->getGoalByHandle($experiment->id, $goalHandle);
-                $goalId = $goal?->id;
-                if (Plugin::getInstance()->tracking->recordConversion($experiment->id, $variant->id, $goalId, $visitorId, $context)) {
+            if ($eventType === 'conversion') {
+                // A conversion counts toward a goal this experiment has. Before 5.0.6 an unknown
+                // goal was recorded anyway, with no goal at all.
+                $goal = $goalHandle ? Plugin::getInstance()->experiments->getGoalByHandle($experiment->id, $goalHandle) : null;
+                if ($goal === null) {
+                    continue;
+                }
+                if (Plugin::getInstance()->tracking->recordConversion($experiment->id, $variant->id, $goal->id, $visitorId, $context)) {
                     $recorded++;
                 }
             } else {
@@ -102,7 +123,7 @@ class TrackingController extends Controller
         }
 
         $experimentHandle = $request->getQueryParam('e');
-        if ($experimentHandle) {
+        if (is_string($experimentHandle) && $experimentHandle !== '' && Plugin::getInstance()->tracking->withinBudget()) {
             $experiment = Plugin::getInstance()->experiments->getRunningExperiment($experimentHandle);
             if ($experiment) {
                 $visitorId = Plugin::getInstance()->assignment->getVisitorId();

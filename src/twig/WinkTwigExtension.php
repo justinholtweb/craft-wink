@@ -101,7 +101,9 @@ class WinkTwigExtension extends AbstractExtension
             'clickGoals' => $this->_getActiveClickGoals(),
         ];
 
-        return '<script>window._winkConfig = ' . json_encode($config) . ';</script>';
+        // Click-goal selectors and the GTM event name are written in the control panel; hex-escape
+        // them so a `</script>` in one can't end this tag early.
+        return '<script>window._winkConfig = ' . json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ';</script>';
     }
 
     private function _getActiveClickGoals(): array

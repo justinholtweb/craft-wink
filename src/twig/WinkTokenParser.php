@@ -48,7 +48,7 @@ class WinkTokenParser extends AbstractTokenParser
                     $stream->expect(Token::BLOCK_END_TYPE);
 
                     // Parse variant body until {% endvariant %}
-                    $body = $this->parser->subparse(function (Token $token) {
+                    $body = $this->parser->subparse(function(Token $token) {
                         return $token->test(Token::NAME_TYPE, 'endvariant');
                     }, true);
 

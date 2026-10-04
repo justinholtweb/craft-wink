@@ -117,6 +117,17 @@
         instructions: 'Events older than this will be automatically purged.'|t('wink'),
     }) }}
 
+    {{ forms.textField({
+        label: 'Tracking Events per Minute'|t('wink'),
+        id: 'trackingBudgetPerMinute',
+        name: 'trackingBudgetPerMinute',
+        value: settings.trackingBudgetPerMinute,
+        type: 'number',
+        min: 0,
+        size: 10,
+        instructions: 'Most impressions and conversions one address can send in a minute. Set to 0 to disable. Behind a proxy or CDN, set Craft’s `trustedHosts`, or every visitor shares the proxy’s budget.'|t('wink'),
+    }) }}
+
     <hr>
     <h2>{{ 'Statistical Settings'|t('wink') }}</h2>
 

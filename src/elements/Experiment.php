@@ -6,7 +6,6 @@ use Craft;
 use craft\base\Element;
 use craft\elements\actions\Delete;
 use craft\elements\actions\Restore;
-use craft\elements\db\ElementQueryInterface;
 use craft\helpers\Db;
 use craft\helpers\UrlHelper;
 use justinholtweb\wink\elements\db\ExperimentQuery;
@@ -65,6 +64,9 @@ class Experiment extends Element
         return $statuses;
     }
 
+    /**
+     * @return ExperimentQuery
+     */
     public static function find(): ExperimentQuery
     {
         return new ExperimentQuery(static::class);
@@ -177,17 +179,17 @@ class Experiment extends Element
 
     public function canView(\craft\elements\User $user): bool
     {
-        return $user->can('accessPlugin-wink');
+        return $user->can(Plugin::PERMISSION_MANAGE) || $user->can(Plugin::PERMISSION_REPORTS);
     }
 
     public function canSave(\craft\elements\User $user): bool
     {
-        return $user->can('accessPlugin-wink');
+        return $user->can(Plugin::PERMISSION_MANAGE);
     }
 
     public function canDelete(\craft\elements\User $user): bool
     {
-        return $user->can('accessPlugin-wink');
+        return $user->can(Plugin::PERMISSION_MANAGE);
     }
 
     // Variants

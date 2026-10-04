@@ -11,6 +11,17 @@ use yii\web\Response;
 
 class ReportsController extends Controller
 {
+    public function beforeAction($action): bool
+    {
+        if (!parent::beforeAction($action)) {
+            return false;
+        }
+
+        $this->requirePermission(Plugin::PERMISSION_REPORTS);
+
+        return true;
+    }
+
     public function actionIndex(): Response
     {
         $experiments = Experiment::find()
@@ -126,6 +137,8 @@ class ReportsController extends Controller
     {
         $this->requirePostRequest();
         $this->requireAcceptsJson();
+        // Ending an experiment changes it, so it takes the right to manage experiments.
+        $this->requirePermission(Plugin::PERMISSION_MANAGE);
 
         $request = Craft::$app->getRequest();
         $experimentId = $request->getRequiredBodyParam('experimentId');

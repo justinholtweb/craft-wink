@@ -3,8 +3,13 @@
 namespace justinholtweb\wink\elements\db;
 
 use craft\elements\db\ElementQuery;
+use justinholtweb\wink\elements\Experiment;
 use justinholtweb\wink\enums\ExperimentStatus;
 
+/**
+ * @method Experiment|null one($db = null)
+ * @method Experiment[] all($db = null)
+ */
 class ExperimentQuery extends ElementQuery
 {
     public ?string $handle = null;

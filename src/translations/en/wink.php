@@ -120,4 +120,8 @@ return [
     'Google Tag Manager' => 'Google Tag Manager',
     'Performance' => 'Performance',
     'Statistical Settings' => 'Statistical Settings',
+    'Manage experiments (variant content is published on the site as HTML)' => 'Manage experiments (variant content is published on the site as HTML)',
+    'View experiment reports' => 'View experiment reports',
+    'Tracking Events per Minute' => 'Tracking Events per Minute',
+    'Most impressions and conversions one address can send in a minute. Set to 0 to disable. Behind a proxy or CDN, set Craft’s `trustedHosts`, or every visitor shares the proxy’s budget.' => 'Most impressions and conversions one address can send in a minute. Set to 0 to disable. Behind a proxy or CDN, set Craft’s `trustedHosts`, or every visitor shares the proxy’s budget.',
 ];

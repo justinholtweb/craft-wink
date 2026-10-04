@@ -9,6 +9,21 @@ use yii\web\Response;
 
 class SettingsController extends Controller
 {
+    /**
+     * Settings are project config, so they are an admin's, on an environment that allows admin
+     * changes — the same as Craft's own. Before 5.0.6 any control panel user could save them.
+     */
+    public function beforeAction($action): bool
+    {
+        if (!parent::beforeAction($action)) {
+            return false;
+        }
+
+        $this->requireAdmin($action->id !== 'index');
+
+        return true;
+    }
+
     public function actionIndex(): Response
     {
         return $this->renderTemplate('wink/settings/_index', [
@@ -37,12 +52,14 @@ class SettingsController extends Controller
 
         $settings->batchInterval = (int)$request->getBodyParam('batchInterval', 5);
         $settings->retentionDays = (int)$request->getBodyParam('retentionDays', 90);
+        $settings->trackingBudgetPerMinute = (int)$request->getBodyParam('trackingBudgetPerMinute', $settings->trackingBudgetPerMinute);
 
         $settings->significanceThreshold = (int)$request->getBodyParam('significanceThreshold', 95);
         $settings->minimumSampleSize = (int)$request->getBodyParam('minimumSampleSize', 100);
 
         if (!Craft::$app->getPlugins()->savePluginSettings(Plugin::getInstance(), $settings->toArray())) {
             Craft::$app->getSession()->setError(Craft::t('wink', 'Couldn\'t save settings.'));
+            Craft::$app->getUrlManager()->setRouteParams(['settings' => $settings]);
             return null;
         }
 

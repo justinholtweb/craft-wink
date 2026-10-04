@@ -69,6 +69,25 @@ php craft plugin/install wink
 Wink.convert('signup-goal', { plan: 'pro' });
 ```
 
+A conversion counts only for a goal the experiment has, and only from a visitor who has had an
+impression of it. Repeat conversions are recorded, but rates and significance count each converted
+visitor once.
+
+## Permissions
+
+| Permission | Lets someone |
+| --- | --- |
+| Manage experiments | Create, edit, start, pause, end and delete experiments, and declare a winner. Variant content is published on the site as HTML, so treat this like the right to edit templates. |
+| View experiment reports | Read the reports |
+
+Settings are admin-only, and saved only where admin changes are allowed.
+
+## The tracking endpoint
+
+`/wink/track` is public, so it takes no more than a page would send: at most 25 events a request,
+and `trackingBudgetPerMinute` (120 by default) per address. Behind a proxy or CDN, set Craft's
+`trustedHosts`, or every visitor shares the proxy's budget.
+
 ## License
 
 Proprietary. See LICENSE.md.

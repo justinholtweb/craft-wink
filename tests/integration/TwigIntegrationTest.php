@@ -221,6 +221,20 @@ final class TwigIntegrationTest extends WinkTestCase
         $this->assertStringNotContainsString('/thanks', $output, 'Only click goals belong in the click list');
     }
 
+    public function testAClickGoalSelectorCannotCloseTheScriptTag(): void
+    {
+        $experiment = $this->createExperiment(['handle' => 'click-escape', 'experimentStatus' => 'running']);
+        $this->addGoals($experiment, [
+            ['handle' => 'cta', 'goalType' => \justinholtweb\wink\enums\GoalType::Click, 'goalTarget' => '.a</script><script>alert(1)</script>'],
+        ]);
+
+        $output = $this->render('{{ winkTrackingScript() }}');
+
+        // One closing tag — the script's own.
+        $this->assertSame(1, substr_count(strtolower($output), '</script'));
+        $this->assertStringNotContainsString('<script>alert', $output);
+    }
+
     // ---- craft.wink variable ------------------------------------------------
 
     public function testCraftWinkVariantReturnsTheAssignedHandle(): void
