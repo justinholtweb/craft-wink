@@ -1,5 +1,41 @@
 # Release Notes for Wink
 
+## 5.1.0 - 2026-10-08
+
+> {warning} **Wink now has cache-safe delivery, and turns it on for you behind Blitz.** The new
+> *Delivery* setting defaults to *Automatic*: cache-safe when Blitz is caching, server-side
+> otherwise. If a CDN or any other full-page cache serves your HTML, Wink can't see it — set
+> Delivery to *Cache-safe*, or your experiments show every visitor the first visitor's variant.
+
+### Added
+- Cache-safe delivery. Every variant of an `{% experiment %}` block (or `winkVariant()`) is
+  rendered into markup that is the same for every visitor, hidden by CSS, and a small inline script
+  assigns the visitor in the browser — with the server's hash, enrollment roll, weights and cookie,
+  so server- and browser-assigned visitors agree — and reveals their variant before it paints.
+  Without JavaScript, the control shows. The impression is recorded through `/wink/track`, by the
+  tracker or, if `winkTrackingScript()` isn't on the page, by the inline script.
+- A *Delivery* setting (`deliveryMode`: `auto`, `server` or `cacheSafe`), and a per-experiment
+  override on the experiment edit screen.
+- Blitz detection. The settings page and the experiment editor warn when server-side delivery is
+  chosen while Blitz is caching. `DeliveryService::EVENT_DETECT_PAGE_CACHE` lets a site report any
+  other full-page cache.
+
+### Changed
+- The visitor cookie is now raw and readable by script, so the browser can assign the visitor the
+  server issued. It still holds only a random ID. A signed cookie from 5.0 is honoured and rewritten,
+  and a cookie value Wink wouldn't have minted is replaced.
+- An event sent from a cache-safe block carries the visitor ID the browser assigned with; the
+  tracking endpoint skips it if the cookie names someone else, rather than count a variant that
+  wasn't shown.
+
+### Fixed
+- The README and site promised cache-safe delivery, but variants were always chosen during the
+  render, so behind Blitz or a CDN every visitor got the cached variant while impressions were
+  counted against each visitor's own assignment.
+- The experiment edit screen failed with a Twig error (`Variable "forms" does not exist`).
+- Events queued when the visitor left the page were sent with `sendBeacon` as `text/plain`, which
+  Craft doesn't parse, so they were lost. They are now sent as JSON with a keepalive request.
+
 ## 5.0.6 - 2026-10-04
 
 > {warning} **Wink now has permissions.** Until now every control panel user could manage

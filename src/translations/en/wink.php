@@ -124,4 +124,18 @@ return [
     'View experiment reports' => 'View experiment reports',
     'Tracking Events per Minute' => 'Tracking Events per Minute',
     'Most impressions and conversions one address can send in a minute. Set to 0 to disable. Behind a proxy or CDN, set Craft’s `trustedHosts`, or every visitor shares the proxy’s budget.' => 'Most impressions and conversions one address can send in a minute. Set to 0 to disable. Behind a proxy or CDN, set Craft’s `trustedHosts`, or every visitor shares the proxy’s budget.',
+
+    // Delivery
+    'Name of the cookie used to store the visitor ID. It is readable by script, so cache-safe experiments can assign visitors in the browser.' => 'Name of the cookie used to store the visitor ID. It is readable by script, so cache-safe experiments can assign visitors in the browser.',
+    'Delivery' => 'Delivery',
+    'Automatic — cache-safe when a full-page cache is on' => 'Automatic — cache-safe when a full-page cache is on',
+    'Server-side' => 'Server-side',
+    'Cache-safe' => 'Cache-safe',
+    'How experiments reach the page, unless an experiment chooses for itself. **Server-side** picks the variant while the page renders: use it only when every page is rendered per request. **Cache-safe** puts every variant in the page and picks in the browser, so the page can be cached — use it behind Blitz, a CDN, Varnish or any full-page cache. Automatic detects Blitz; it can’t see a CDN.' => 'How experiments reach the page, unless an experiment chooses for itself. **Server-side** picks the variant while the page renders: use it only when every page is rendered per request. **Cache-safe** puts every variant in the page and picks in the browser, so the page can be cached — use it behind Blitz, a CDN, Varnish or any full-page cache. Automatic detects Blitz; it can’t see a CDN.',
+    'Detected: {cache} is caching full pages.' => 'Detected: {cache} is caching full pages.',
+    'e.g. G-XXXXXXXXXX' => 'e.g. G-XXXXXXXXXX',
+    'Use the plugin setting ({mode})' => 'Use the plugin setting ({mode})',
+    'Automatic' => 'Automatic',
+    'Cache-safe puts every variant in the page and chooses in the browser, so pages with this experiment can be cached by Blitz, a CDN or any full-page cache. Server-side chooses while the page renders, and is only right on pages that are never cached.' => 'Cache-safe puts every variant in the page and chooses in the browser, so pages with this experiment can be cached by Blitz, a CDN or any full-page cache. Server-side chooses while the page renders, and is only right on pages that are never cached.',
+    '{cache} is caching full pages, and server-side delivery chooses the variant while the page renders — so the first visitor’s variant is cached and shown to everyone, and impressions are counted against the wrong variant. Use cache-safe delivery.' => '{cache} is caching full pages, and server-side delivery chooses the variant while the page renders — so the first visitor’s variant is cached and shown to everyone, and impressions are counted against the wrong variant. Use cache-safe delivery.',
 ];

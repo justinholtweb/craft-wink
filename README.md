@@ -17,7 +17,8 @@ php craft plugin/install wink
 ## Features
 
 - **Experiments as Elements** — full Craft element index with statuses, search, and filtering
-- **Server-side variant assignment** — deterministic hashing means no flicker and cache-safe
+- **Deterministic variant assignment** — the same visitor always gets the same variant, with no flicker
+- **Cache-safe delivery** — experiments stay correct behind Blitz, a CDN or any full-page cache
 - **Conversion goals** — page views, clicks, form submissions, or custom events
 - **Statistical significance** — two-proportion z-test with Wilson score confidence intervals
 - **Reports dashboard** — conversion rates, uplift, confidence levels, and time-series charts
@@ -72,6 +73,46 @@ Wink.convert('signup-goal', { plan: 'pro' });
 A conversion counts only for a goal the experiment has, and only from a visitor who has had an
 impression of it. Repeat conversions are recorded, but rates and significance count each converted
 visitor once.
+
+## Delivery: server-side or cache-safe
+
+How an experiment reaches the page is the **Delivery** setting (`deliveryMode`), which each
+experiment can override on its edit screen.
+
+| Mode | What happens | Use it when |
+| --- | --- | --- |
+| `server` | The visitor's variant is chosen while the page renders, and only it is sent. | Every page is rendered per request. |
+| `cacheSafe` | Every variant is in the HTML, hidden by CSS. A small inline script assigns the visitor in the browser — same hash, weights and cookie as the server — and reveals their variant before it paints. Without JavaScript, the control shows. | Blitz, a CDN, Varnish or any full-page cache serves the page. |
+| `auto` (default) | `cacheSafe` when Blitz is installed with caching on, otherwise `server`. | You run Blitz, or no cache. Wink can't see a CDN: if one caches your HTML, choose `cacheSafe`. |
+
+Server-side delivery behind a cache stores the first visitor's variant and shows it to everyone,
+while counting impressions against each visitor's own assignment. The control panel warns when an
+experiment, or the setting, is server-side while Blitz is caching. Any other full-page cache can be
+reported to Wink, for `auto` and for the warning:
+
+```php
+use justinholtweb\wink\events\DetectPageCacheEvent;
+use justinholtweb\wink\services\DeliveryService;
+use yii\base\Event;
+
+Event::on(DeliveryService::class, DeliveryService::EVENT_DETECT_PAGE_CACHE, function(DetectPageCacheEvent $event) {
+    $event->pageCache ??= 'Cloudflare';
+});
+```
+
+In cache-safe mode:
+
+- `{% experiment %}` and `winkVariant()` render cache-safe markup. `winkExperiment()` and
+  `craft.wink.variant()` hand the visitor's variant to your template, so they always run
+  server-side; don't use them on cached pages.
+- Impressions are recorded by the browser through `/wink/track` — by the tracker if
+  `winkTrackingScript()` is on the page, otherwise by the inline script itself. The server
+  recomputes the assignment from the visitor cookie, so it counts the variant that was shown, and it
+  skips an event assigned to a different visitor than the cookie names. Conversions work as before.
+- The visitor cookie is readable by script (it holds a random ID and nothing else). A signed cookie
+  from Wink 5.0 is still honoured and rewritten.
+- A Content Security Policy that blocks inline scripts keeps blocks hidden until the tracker loads
+  and reveals them.
 
 ## Permissions
 

@@ -72,6 +72,8 @@ class ExperimentsController extends Controller
         $experiment->handle = $request->getBodyParam('handle');
         $experiment->description = $request->getBodyParam('description');
         $experiment->trafficPercent = (int)($request->getBodyParam('trafficPercent') ?: 100);
+        $deliveryMode = $request->getBodyParam('deliveryMode');
+        $experiment->deliveryMode = is_string($deliveryMode) && $deliveryMode !== '' ? $deliveryMode : null;
 
         // Don't allow changing status through the save action directly
         if (!$experiment->id) {

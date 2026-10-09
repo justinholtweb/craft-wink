@@ -16,6 +16,12 @@ class AssignmentService extends Component
     private ?string $_visitorId = null;
 
     /**
+     * What a visitor ID may look like. Wink mints UUIDs on the server and in the browser; anything
+     * else in the cookie is ignored and replaced, because from 5.1.0 the cookie is not signed.
+     */
+    public const VISITOR_ID_PATTERN = '/^[A-Za-z0-9\-]{8,64}$/';
+
+    /**
      * Get or create a visitor ID from cookies.
      *
      * The result is memoized for the request: a newly generated ID only exists
@@ -23,6 +29,10 @@ class AssignmentService extends Component
      * fresh ID on every call. That would scatter a single visitor's
      * assignments and impressions across several throwaway IDs whenever a page
      * resolves more than one experiment.
+     *
+     * Since 5.1.0 the cookie is a plain value the browser can read, so a page delivered cache-safe
+     * (see {@see DeliveryService}) assigns the visitor the browser has, with the same hash. A signed
+     * cookie from an earlier version is still honoured, and rewritten in the new form.
      */
     public function getVisitorId(): string
     {
@@ -30,17 +40,37 @@ class AssignmentService extends Component
             return $this->_visitorId;
         }
 
-        $settings = Plugin::getInstance()->getSettings();
-        $cookieName = $settings->cookieName;
+        $cookieName = Plugin::getInstance()->getSettings()->cookieName;
+        $request = Craft::$app->getRequest();
+        $visitorId = null;
 
-        $visitorId = Craft::$app->getRequest()->getCookies()->getValue($cookieName);
+        if ($request instanceof \craft\web\Request) {
+            $raw = $request->getRawCookies()->getValue($cookieName);
+            if (is_string($raw) && self::isValidVisitorId($raw)) {
+                $visitorId = $raw;
+            } else {
+                $signed = $request->getCookies()->getValue($cookieName);
+                if (is_string($signed) && self::isValidVisitorId($signed)) {
+                    $visitorId = $signed;
+                    // Only a validated request has signed cookies to move off.
+                    if ($request->enableCookieValidation) {
+                        $this->setVisitorCookie($visitorId);
+                    }
+                }
+            }
+        }
 
-        if (!$visitorId) {
+        if ($visitorId === null) {
             $visitorId = $this->generateVisitorId();
             $this->setVisitorCookie($visitorId);
         }
 
         return $this->_visitorId = $visitorId;
+    }
+
+    public static function isValidVisitorId(string $visitorId): bool
+    {
+        return (bool)preg_match(self::VISITOR_ID_PATTERN, $visitorId);
     }
 
     /**
@@ -118,19 +148,26 @@ class AssignmentService extends Component
         return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
     }
 
+    /**
+     * The visitor cookie is written raw — unsigned, and readable by script — so the cache-safe
+     * runtime can read the ID the server issued and write one the server will accept. It is a
+     * random token that only groups tracking events; it grants nothing.
+     */
     private function setVisitorCookie(string $visitorId): void
     {
+        $response = Craft::$app->getResponse();
+        if (!$response instanceof \craft\web\Response) {
+            return;
+        }
+
         $settings = Plugin::getInstance()->getSettings();
 
-        $cookie = new \yii\web\Cookie([
+        $response->getRawCookies()->add(new \yii\web\Cookie(Craft::cookieConfig([
             'name' => $settings->cookieName,
             'value' => $visitorId,
             'expire' => time() + ($settings->cookieDuration * 86400),
-            'httpOnly' => true,
-            'secure' => Craft::$app->getRequest()->getIsSecureConnection(),
+            'httpOnly' => false,
             'sameSite' => \yii\web\Cookie::SAME_SITE_LAX,
-        ]);
-
-        Craft::$app->getResponse()->getCookies()->add($cookie);
+        ])));
     }
 }

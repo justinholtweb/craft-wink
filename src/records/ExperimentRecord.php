@@ -13,6 +13,7 @@ use craft\db\ActiveRecord;
  * @property string|null $startDate
  * @property string|null $endDate
  * @property int|null $winnerVariantId
+ * @property string|null $deliveryMode
  */
 class ExperimentRecord extends ActiveRecord
 {

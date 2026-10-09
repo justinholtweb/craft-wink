@@ -35,6 +35,7 @@ src/
 │   ├── ExperimentService.php     # CRUD, status lifecycle, variant/goal management
 │   ├── AssignmentService.php     # Visitor ID cookies, deterministic variant assignment
 │   ├── TrackingService.php       # Impression/conversion recording, dedup, retention purge
+│   ├── DeliveryService.php       # Server-side vs cache-safe delivery, Blitz detection, cache-safe markup
 │   └── StatsService.php          # Z-test, p-value, Wilson CI, winner determination, time series
 ├── controllers/                  # CP and frontend HTTP handlers
 │   ├── ExperimentsController.php # CP CRUD (index, edit, save, delete, status transitions)
@@ -66,8 +67,12 @@ src/
 ### Experiments Are Craft Elements
 `Experiment` extends `craft\base\Element`. This gives us the standard element index, search, custom statuses, and query API for free. The content table is `{{%wink_experiments}}` joined to `elements` via `id`.
 
-### Server-Side Deterministic Assignment
-Variant assignment uses `crc32(visitorId + experimentId)` — no server-side storage needed, no flicker, cache-safe. The visitor ID is a UUID v4 stored in a cookie. Enrollment is checked separately via `crc32(visitorId + experimentId + 'enrollment') % 100 < trafficPercent`.
+### Deterministic Assignment, Two Deliveries
+Variant assignment uses `crc32(visitorId + experimentId)` — no server-side storage needed. The visitor ID is a UUID v4 stored in a raw (unsigned, script-readable) cookie. Enrollment is checked separately via `crc32(visitorId + experimentId + 'enrollment') % 100 < trafficPercent`.
+
+`DeliveryService` decides per experiment (`deliveryMode` column, else the `deliveryMode` setting; `auto` = cache-safe when Blitz is caching or `EVENT_DETECT_PAGE_CACHE` names a cache):
+- **server** — `WinkNode` assigns while rendering and outputs only that variant. Wrong behind a full-page cache.
+- **cacheSafe** — `WinkNode` captures every variant body (Twig `CaptureNode`) and `renderCacheSafe()` outputs visitor-independent markup + inlined `web/assets/tracking/dist/js/wink-delivery.js`, which re-implements the hash in JS. **Any change to `assignVariant()`/`isEnrolled()` must be mirrored in `wink-delivery.js`**: `tests/unit/BucketingParityTest.php` pins PHP to `tests/js/fixtures/bucketing.json` and `node tests/js/bucketing.test.js` pins JS to it. Events from cache-safe blocks carry `vid`; `/wink/track` skips them if the cookie names someone else.
 
 ### Statistical Engine
 Two-proportion z-test with pooled proportion. P-value calculated via Abramowitz & Stegun normal CDF approximation. Wilson score confidence intervals (better than Wald for small samples). Auto-declares winner when confidence >= threshold and sample >= minimum.
@@ -197,6 +202,8 @@ Notes on the harness:
   conversion requires a prior impression, `TrackingService::withinBudget()` per address
   (`getRemoteIP()` unless `trustedHosts` is set).
 - Stats rates use `getConvertedVisitorCount()` (distinct visitors), not conversion events.
-- Tests: `tests/harness/security.php` (15 checks over HTTP, plugin-testing harness) plus the
+- Tests: `tests/harness/security.php` (15 checks over HTTP, plugin-testing harness),
+  `tests/harness/delivery.php` (cache-safe delivery: byte-identical renders across visitors, cookies,
+  mode selection, tracking over HTTP, CP fields), `node tests/js/bucketing.test.js`, plus the
   Codeception suite (`vendor/bin/codecept run integration`, in this repo's DDEV). Static analysis:
   `docker exec -w /sites/craft-wink ddev-phpstan-runner-web bash -c 'vendor/bin/phpstan analyse --memory-limit=1G && vendor/bin/ecs check'`.

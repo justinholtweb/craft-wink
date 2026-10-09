@@ -6,12 +6,28 @@ use craft\base\Model;
 
 class Settings extends Model
 {
+    public const DELIVERY_AUTO = 'auto';
+    public const DELIVERY_SERVER = 'server';
+    public const DELIVERY_CACHE_SAFE = 'cacheSafe';
+
     // Tracking
     public bool $enableTracking = true;
     public bool $respectDnt = true;
     public bool $anonymizeIp = false;
     public string $cookieName = '_wink_vid';
     public int $cookieDuration = 365;
+
+    // Delivery
+    /**
+     * How experiment blocks reach the page, unless an experiment says otherwise:
+     *
+     * - `server` — the visitor's variant is chosen while the page renders. Only correct when every
+     *   page is rendered per request.
+     * - `cacheSafe` — every variant is in the HTML and a small script chooses in the browser, so the
+     *   page is the same for everyone and can sit in Blitz, a CDN or any full-page cache.
+     * - `auto` — `cacheSafe` when a full-page cache Wink knows about (Blitz) is caching, else `server`.
+     */
+    public string $deliveryMode = self::DELIVERY_AUTO;
 
     // GA4 / GTM
     public bool $enableGa4 = false;
@@ -37,6 +53,7 @@ class Settings extends Model
     {
         return [
             [['cookieName'], 'required'],
+            [['deliveryMode'], 'in', 'range' => [self::DELIVERY_AUTO, self::DELIVERY_SERVER, self::DELIVERY_CACHE_SAFE]],
             [['cookieName'], 'match', 'pattern' => '/^[A-Za-z0-9_\-]{1,64}$/'],
             [['trackingBudgetPerMinute'], 'integer', 'min' => 0],
             [['cookieDuration', 'batchInterval', 'retentionDays', 'minimumSampleSize'], 'integer', 'min' => 1],

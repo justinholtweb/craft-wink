@@ -13,6 +13,7 @@ use craft\web\UrlManager;
 use justinholtweb\wink\elements\Experiment;
 use justinholtweb\wink\models\Settings;
 use justinholtweb\wink\services\AssignmentService;
+use justinholtweb\wink\services\DeliveryService;
 use justinholtweb\wink\services\ExperimentService;
 use justinholtweb\wink\services\StatsService;
 use justinholtweb\wink\services\TrackingService;
@@ -25,6 +26,7 @@ use yii\base\Event;
  * @property-read TrackingService $tracking
  * @property-read StatsService $stats
  * @property-read AssignmentService $assignment
+ * @property-read DeliveryService $delivery
  * @property-read Settings $settings
  * @method Settings getSettings()
  */
@@ -39,7 +41,7 @@ class Plugin extends BasePlugin
     /** Read experiment reports. */
     public const PERMISSION_REPORTS = 'wink:viewReports';
 
-    public string $schemaVersion = '5.0.0';
+    public string $schemaVersion = '5.1.0';
     public bool $hasCpSettings = true;
     public bool $hasCpSection = true;
 
@@ -51,6 +53,7 @@ class Plugin extends BasePlugin
                 'tracking' => TrackingService::class,
                 'stats' => StatsService::class,
                 'assignment' => AssignmentService::class,
+                'delivery' => DeliveryService::class,
             ],
         ];
     }

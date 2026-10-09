@@ -31,6 +31,17 @@ class WinkTwigExtension extends AbstractExtension
      */
     public function winkVariant(string $handle): string
     {
+        // Cache-safe: every variant's content goes in the page and the browser picks, like the tag.
+        $experiment = Plugin::getInstance()->experiments->getRunningExperiment($handle);
+        if ($experiment && Plugin::getInstance()->delivery->isCacheSafe($experiment)) {
+            $bodies = [];
+            foreach ($experiment->getVariants() as $variant) {
+                $bodies[$variant->handle] = $variant->content ?? '';
+            }
+
+            return Plugin::getInstance()->delivery->renderCacheSafe($experiment, $bodies);
+        }
+
         $assignment = Plugin::getInstance()->assignment;
         $variant = $assignment->getAssignment($handle);
 
@@ -44,6 +55,9 @@ class WinkTwigExtension extends AbstractExtension
     /**
      * Returns an object with experiment and variant info.
      * Usage: {% set test = winkExperiment('headline-test') %}
+     *
+     * The visitor's variant is handed to the template, so this is always server-side, whatever the
+     * experiment's delivery: don't use it on a page a full-page cache serves.
      */
     public function winkExperiment(string $handle): ?object
     {

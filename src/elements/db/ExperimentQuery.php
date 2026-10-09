@@ -49,6 +49,7 @@ class ExperimentQuery extends ElementQuery
             'wink_experiments.startDate',
             'wink_experiments.endDate',
             'wink_experiments.winnerVariantId',
+            'wink_experiments.deliveryMode',
         ]);
 
         if ($this->handle !== null) {

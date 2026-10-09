@@ -11,6 +11,7 @@ use craft\helpers\UrlHelper;
 use justinholtweb\wink\elements\db\ExperimentQuery;
 use justinholtweb\wink\enums\ExperimentStatus;
 use justinholtweb\wink\models\Goal;
+use justinholtweb\wink\models\Settings;
 use justinholtweb\wink\models\Variant;
 use justinholtweb\wink\Plugin;
 use justinholtweb\wink\records\ExperimentRecord;
@@ -151,6 +152,12 @@ class Experiment extends Element
     public ?string $endDate = null;
     public ?int $winnerVariantId = null;
 
+    /**
+     * `server` or `cacheSafe` for this experiment; null follows the plugin's Delivery setting.
+     * See {@see \justinholtweb\wink\services\DeliveryService::isCacheSafe()}.
+     */
+    public ?string $deliveryMode = null;
+
     /** @var Variant[]|null */
     private ?array $_variants = null;
 
@@ -275,6 +282,7 @@ class Experiment extends Element
             'message' => Craft::t('wink', 'Handle must start with a letter and contain only lowercase letters, numbers, and hyphens.'),
         ];
         $rules[] = [['trafficPercent'], 'integer', 'min' => 1, 'max' => 100];
+        $rules[] = [['deliveryMode'], 'in', 'range' => [Settings::DELIVERY_SERVER, Settings::DELIVERY_CACHE_SAFE]];
 
         return $rules;
     }
@@ -299,6 +307,7 @@ class Experiment extends Element
         $record->startDate = Db::prepareDateForDb($this->startDate);
         $record->endDate = Db::prepareDateForDb($this->endDate);
         $record->winnerVariantId = $this->winnerVariantId;
+        $record->deliveryMode = $this->deliveryMode ?: null;
 
         $record->save(false);
 

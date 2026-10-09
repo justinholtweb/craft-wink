@@ -10,7 +10,10 @@ class TrackingAsset extends AssetBundle
     {
         $this->sourcePath = __DIR__ . '/dist';
 
+        // The delivery runtime first: the tracker resolves any cache-safe block still unresolved
+        // before it records impressions.
         $this->js = [
+            'js/wink-delivery.js',
             'js/wink.min.js',
         ];
 

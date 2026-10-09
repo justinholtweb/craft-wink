@@ -33,7 +33,8 @@ final class AssignmentIntegrationTest extends WinkTestCase
         $cookieName = Plugin::getInstance()->getSettings()->cookieName;
 
         $visitorId = $this->assignment()->getVisitorId();
-        $cookie = Craft::$app->getResponse()->getCookies()->get($cookieName);
+        // Raw (unsigned) since 5.1.0, so the cache-safe runtime can read it.
+        $cookie = Craft::$app->getResponse()->getRawCookies()->get($cookieName);
 
         $this->assertNotNull($cookie, 'A visitor cookie should have been queued on the response');
         $this->assertSame($visitorId, $cookie->value);
@@ -46,6 +47,15 @@ final class AssignmentIntegrationTest extends WinkTestCase
         $this->setRequestCookie($cookieName, 'existing-visitor-id');
 
         $this->assertSame('existing-visitor-id', $this->assignment()->getVisitorId());
+    }
+
+    public function testCookieValueWinkWouldNotMintIsReplaced(): void
+    {
+        $cookieName = Plugin::getInstance()->getSettings()->cookieName;
+
+        $this->setRequestCookie($cookieName, '<script>');
+
+        $this->assertNotSame('<script>', $this->assignment()->getVisitorId());
     }
 
     /**
@@ -63,14 +73,18 @@ final class AssignmentIntegrationTest extends WinkTestCase
         $this->assertSame($first, $third);
     }
 
-    public function testCookieIsHttpOnlyAndLaxSameSite(): void
+    /**
+     * Not http-only since 5.1.0: a cache-safe page assigns in the browser and must read the ID the
+     * server issued.
+     */
+    public function testCookieIsScriptReadableAndLaxSameSite(): void
     {
         $cookieName = Plugin::getInstance()->getSettings()->cookieName;
 
         $this->assignment()->getVisitorId();
-        $cookie = Craft::$app->getResponse()->getCookies()->get($cookieName);
+        $cookie = Craft::$app->getResponse()->getRawCookies()->get($cookieName);
 
-        $this->assertTrue($cookie->httpOnly);
+        $this->assertFalse($cookie->httpOnly);
         $this->assertSame(\yii\web\Cookie::SAME_SITE_LAX, $cookie->sameSite);
     }
 

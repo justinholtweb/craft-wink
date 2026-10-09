@@ -40,7 +40,8 @@
         id: 'cookieName',
         name: 'cookieName',
         value: settings.cookieName,
-        instructions: 'Name of the cookie used to store the visitor ID.'|t('wink'),
+        instructions: 'Name of the cookie used to store the visitor ID. It is readable by script, so cache-safe experiments can assign visitors in the browser.'|t('wink'),
+        errors: settings.getErrors('cookieName'),
     }) }}
 
     {{ forms.textField({
@@ -51,6 +52,26 @@
         type: 'number',
         min: 1,
         size: 10,
+    }) }}
+
+    <hr>
+    <h2>{{ 'Delivery'|t('wink') }}</h2>
+
+    {% set pageCache = plugin.delivery.getPageCache() %}
+    {{ forms.selectField({
+        label: 'Delivery'|t('wink'),
+        id: 'deliveryMode',
+        name: 'deliveryMode',
+        value: settings.deliveryMode,
+        options: [
+            {label: 'Automatic — cache-safe when a full-page cache is on'|t('wink'), value: 'auto'},
+            {label: 'Server-side'|t('wink'), value: 'server'},
+            {label: 'Cache-safe'|t('wink'), value: 'cacheSafe'},
+        ],
+        instructions: 'How experiments reach the page, unless an experiment chooses for itself. **Server-side** picks the variant while the page renders: use it only when every page is rendered per request. **Cache-safe** puts every variant in the page and picks in the browser, so the page can be cached — use it behind Blitz, a CDN, Varnish or any full-page cache. Automatic detects Blitz; it can’t see a CDN.'|t('wink'),
+        tip: pageCache ? 'Detected: {cache} is caching full pages.'|t('wink', {cache: pageCache}) : null,
+        warning: plugin.delivery.getServerSideWarning(),
+        errors: settings.getErrors('deliveryMode'),
     }) }}
 
     <hr>

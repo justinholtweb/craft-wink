@@ -17,6 +17,7 @@ class Install extends Migration
             'startDate' => $this->dateTime(),
             'endDate' => $this->dateTime(),
             'winnerVariantId' => $this->integer(),
+            'deliveryMode' => $this->string(20),
             'dateCreated' => $this->dateTime()->notNull(),
             'dateUpdated' => $this->dateTime()->notNull(),
             'uid' => $this->uid(),

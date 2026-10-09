@@ -149,6 +149,33 @@ final class WinkTagCompileTest extends TestCase
         $this->assertStringContainsString('hi', $php);
     }
 
+    /**
+     * Cache-safe experiments render every variant and leave the choice to the browser, so that
+     * branch must not touch the visitor: no cookie read, no assignment, no impression.
+     */
+    public function testCacheSafeBranchRendersEveryVariantWithoutTheVisitor(): void
+    {
+        $php = $this->compile(<<<'TWIG'
+            {% experiment 'headline-test' %}
+              {% variant 'control' %}<h1>Welcome</h1>{% endvariant %}
+              {% variant 'variant-a' %}<h1>Discover</h1>{% endvariant %}
+            {% endexperiment %}
+            TWIG);
+
+        $start = strpos($php, 'delivery->isCacheSafe($_winkExperiment)');
+        $end = strpos($php, '} elseif ($_winkExperiment) {');
+        $this->assertNotFalse($start);
+        $this->assertNotFalse($end);
+
+        $branch = substr($php, $start, $end - $start);
+        $this->assertStringContainsString("\$_winkBodies['control'] = ", $branch);
+        $this->assertStringContainsString("\$_winkBodies['variant-a'] = ", $branch);
+        $this->assertStringContainsString('renderCacheSafe($_winkExperiment, $_winkBodies)', $branch);
+        $this->assertStringNotContainsString('getVisitorId', $branch);
+        $this->assertStringNotContainsString('assignVariant', $branch);
+        $this->assertStringNotContainsString('recordImpression', $branch);
+    }
+
     public function testParserProducesAWinkNode(): void
     {
         $template = "{% experiment 'x' %}{% variant 'control' %}A{% endvariant %}{% endexperiment %}";

@@ -14,6 +14,9 @@ return [
     'cookieDuration' => 365,
     'trackingBudgetPerMinute' => 120, // events one address may send per minute; 0 = no limit
 
+    // Delivery: 'auto' (cache-safe when Blitz is caching), 'server' or 'cacheSafe'
+    'deliveryMode' => 'auto',
+
     // GA4 / GTM
     'enableGa4' => false,
     'ga4MeasurementId' => '',

@@ -3,15 +3,19 @@
 namespace justinholtweb\wink\twig;
 
 use Twig\Compiler;
+use Twig\Node\CaptureNode;
 use Twig\Node\Node;
 
 /**
  * Compiled node for the {% experiment %} tag.
  *
- * Generates PHP that:
+ * Generates PHP that, for a server-side experiment:
  * 1. Gets the assigned variant for the visitor
  * 2. Renders only the matching variant block
  * 3. Wraps output in a data attribute div for auto-tracking
+ *
+ * and for a cache-safe one renders every variant block and hands them to
+ * DeliveryService::renderCacheSafe(), which chooses nothing — the browser does.
  */
 class WinkNode extends Node
 {
@@ -35,7 +39,23 @@ class WinkNode extends Node
             ->addDebugInfo($this)
             ->write('$_winkPlugin = \\justinholtweb\\wink\\Plugin::getInstance();' . "\n")
             ->write('$_winkExperiment = $_winkPlugin->experiments->getRunningExperiment(' . var_export($this->experimentHandle, true) . ');' . "\n")
-            ->write('if ($_winkExperiment) {' . "\n")
+            ->write('if ($_winkExperiment && $_winkPlugin->delivery->isCacheSafe($_winkExperiment)) {' . "\n")
+            ->indent()
+            ->write('$_winkBodies = [];' . "\n");
+
+        foreach ($this->variantBodies as $handle => $body) {
+            $capture = new CaptureNode($body, $body->getTemplateLine());
+            $capture->setAttribute('raw', true);
+            $compiler
+                ->write('$_winkBodies[' . var_export((string)$handle, true) . '] = ')
+                ->subcompile($capture)
+                ->raw("\n");
+        }
+
+        $compiler
+            ->write('echo $_winkPlugin->delivery->renderCacheSafe($_winkExperiment, $_winkBodies);' . "\n")
+            ->outdent()
+            ->write('} elseif ($_winkExperiment) {' . "\n")
             ->indent()
             ->write('$_winkVisitorId = $_winkPlugin->assignment->getVisitorId();' . "\n")
             ->write('$_winkVariant = $_winkPlugin->assignment->assignVariant($_winkVisitorId, $_winkExperiment);' . "\n")

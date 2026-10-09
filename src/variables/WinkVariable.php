@@ -27,6 +27,7 @@ class WinkVariable
 
     /**
      * Get the assigned variant handle for an experiment.
+     * Always server-side (see WinkTwigExtension::winkExperiment()).
      */
     public function variant(string $experimentHandle): ?string
     {

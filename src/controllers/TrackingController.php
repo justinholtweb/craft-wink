@@ -66,6 +66,14 @@ class TrackingController extends Controller
                 continue;
             }
 
+            // A cache-safe block says which visitor ID it was assigned with in the browser. If the
+            // cookie here names someone else (the browser couldn't store its ID, or an older
+            // http-only cookie hid it), the variant the server would count isn't the one shown.
+            $claimed = $event['vid'] ?? null;
+            if ($claimed !== null && $claimed !== $visitorId) {
+                continue;
+            }
+
             if (!Plugin::getInstance()->tracking->withinBudget()) {
                 break;
             }
