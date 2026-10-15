@@ -4,6 +4,7 @@ namespace justinholtweb\wink\tests\integration;
 
 use Craft;
 use justinholtweb\wink\enums\GoalType;
+use justinholtweb\wink\models\Settings;
 use justinholtweb\wink\Plugin;
 use justinholtweb\wink\services\AssignmentService;
 
@@ -141,6 +142,105 @@ final class TwigIntegrationTest extends WinkTestCase
 
         $this->assertStringContainsString('data-wink-experiment="partial-blocks"', $html);
         $this->assertStringNotContainsString('Never', $html);
+    }
+
+    // ---- dynamic handles and winkRender() (#7) ------------------------------
+
+    public function testExperimentTagTakesAHandleFromAVariable(): void
+    {
+        $this->runningExperiment('from-field');
+
+        $html = $this->render(<<<'TWIG'
+            {% experiment block.experimentHandle %}
+              {% variant 'control' %}Welcome{% endvariant %}
+              {% variant 'challenger' %}Discover{% endvariant %}
+            {% endexperiment %}
+            TWIG, ['block' => ['experimentHandle' => 'from-field']]);
+
+        $this->assertStringContainsString('data-wink-experiment="from-field"', $html);
+        $this->assertSame(1, (int)str_contains($html, 'Welcome') + (int)str_contains($html, 'Discover'));
+    }
+
+    public function testExperimentTagWithAnEmptyHandleRendersNothing(): void
+    {
+        $this->runningExperiment();
+
+        $html = $this->render(<<<'TWIG'
+            {% experiment block.experimentHandle %}{% variant 'control' %}Welcome{% endvariant %}{% endexperiment %}
+            TWIG, ['block' => ['experimentHandle' => null]]);
+
+        $this->assertSame('', trim($html));
+    }
+
+    /**
+     * An experiment inside another's variant, cache-safe: each block must carry its own
+     * experiment, where shared compiled variables made the outer block render as the inner one.
+     */
+    public function testNestedCacheSafeExperimentsKeepTheirOwnExperiment(): void
+    {
+        $this->runningExperiment('outer');
+        $this->runningExperiment('inner');
+        $this->withSettings(['deliveryMode' => Settings::DELIVERY_CACHE_SAFE]);
+
+        $html = $this->render(<<<'TWIG'
+            {% experiment 'outer' %}
+              {% variant 'control' %}{% experiment 'inner' %}{% variant 'control' %}In-A{% endvariant %}{% variant 'challenger' %}In-B{% endvariant %}{% endexperiment %}{% endvariant %}
+              {% variant 'challenger' %}Out-B{% endvariant %}
+            {% endexperiment %}
+            TWIG);
+
+        $this->assertSame(1, substr_count($html, 'data-wink-experiment="outer"'));
+        $this->assertSame(1, substr_count($html, 'data-wink-experiment="inner"'));
+        $this->assertLessThan(strpos($html, 'data-wink-experiment="inner"'), strpos($html, 'data-wink-experiment="outer"'));
+        foreach (['In-A', 'In-B', 'Out-B'] as $body) {
+            $this->assertStringContainsString($body, $html);
+        }
+    }
+
+    public function testWinkRenderServerSideShowsOneBodyAndRecordsAnImpression(): void
+    {
+        $experiment = $this->runningExperiment();
+        $this->withSettings(['deliveryMode' => Settings::DELIVERY_SERVER]);
+
+        $html = $this->render(<<<'TWIG'
+            {% set a %}<p>Welcome</p>{% endset %}
+            {{ winkRender(handle, { control: a, challenger: '<p>Discover</p>' }) }}
+            TWIG, ['handle' => 'twig-test']);
+
+        $this->assertMatchesRegularExpression('~<div data-wink-experiment="twig-test" data-wink-variant="(control|challenger)"><p>(Welcome|Discover)</p></div>~', $html);
+        $this->assertSame(1, (int)str_contains($html, 'Welcome') + (int)str_contains($html, 'Discover'));
+        $this->assertSame(1, Plugin::getInstance()->tracking->getImpressionCount($experiment->id));
+    }
+
+    public function testWinkRenderCacheSafeShowsEveryBodyAndRecordsNothing(): void
+    {
+        $experiment = $this->runningExperiment();
+        $this->withSettings(['deliveryMode' => Settings::DELIVERY_CACHE_SAFE]);
+
+        $html = $this->render("{{ winkRender('twig-test', { control: '<p>Welcome</p>', challenger: '<p>Discover</p>', unknown: 'Never' }) }}");
+
+        $this->assertStringContainsString('data-wink-delivery="cache-safe"', $html);
+        $this->assertStringContainsString('<div data-wink-option="control" data-wink-fallback><p>Welcome</p></div>', $html);
+        $this->assertStringContainsString('<div data-wink-option="challenger"><p>Discover</p></div>', $html);
+        $this->assertStringNotContainsString('Never', $html);
+        $this->assertSame(0, Plugin::getInstance()->tracking->getImpressionCount($experiment->id));
+    }
+
+    public function testWinkRenderMatchesTheTagWhenCacheSafe(): void
+    {
+        $this->runningExperiment();
+        $this->withSettings(['deliveryMode' => Settings::DELIVERY_CACHE_SAFE]);
+
+        $tag = $this->render("{% experiment 'twig-test' %}{% variant 'control' %}<p>Welcome</p>{% endvariant %}{% variant 'challenger' %}<p>Discover</p>{% endvariant %}{% endexperiment %}");
+        $function = $this->render("{{ winkRender('twig-test', { control: '<p>Welcome</p>', challenger: '<p>Discover</p>' }) }}");
+
+        $this->assertSame($tag, $function);
+    }
+
+    public function testWinkRenderRendersNothingWithoutARunningExperiment(): void
+    {
+        $this->assertSame('', trim($this->render("{{ winkRender('nope', { control: 'Welcome' }) }}")));
+        $this->assertSame('', trim($this->render('{{ winkRender(null, { control: "Welcome" }) }}')));
     }
 
     // ---- winkVariant() ------------------------------------------------------

@@ -1,5 +1,20 @@
 # Release Notes for Wink
 
+## Unreleased
+
+### Added
+- `{% experiment %}` takes any expression as its handle, so a page-builder block can pass its own
+  field: `{% experiment block.experimentHandle %}`. Variant handles are still string literals.
+  ([#7](https://github.com/justinholtweb/craft-wink/issues/7))
+- `winkRender(handle, bodies)` renders an experiment block from variant bodies the template has
+  already rendered, keyed by variant handle — cache-safe or server-side as the experiment is
+  delivered, like the tag. `DeliveryService::render()` and `renderServerSide()` do the same from PHP.
+  ([#7](https://github.com/justinholtweb/craft-wink/issues/7))
+
+### Fixed
+- An `{% experiment %}` block inside another's variant overwrote the outer block's state, so the
+  outer block rendered as the inner experiment.
+
 ## 5.2.0 - 2026-10-15
 
 ### Added

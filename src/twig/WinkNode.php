@@ -4,6 +4,7 @@ namespace justinholtweb\wink\twig;
 
 use Twig\Compiler;
 use Twig\Node\CaptureNode;
+use Twig\Node\Expression\AbstractExpression;
 use Twig\Node\Node;
 
 /**
@@ -16,68 +17,78 @@ use Twig\Node\Node;
  *
  * and for a cache-safe one renders every variant block and hands them to
  * DeliveryService::renderCacheSafe(), which chooses nothing — the browser does.
+ *
+ * Each node compiles its own variable names, so an experiment nested in another's variant (a
+ * page-builder block inside a page-builder block) can't overwrite the outer one's state.
  */
 class WinkNode extends Node
 {
-    private string $experimentHandle;
     private array $variantBodies;
 
     /**
+     * @param AbstractExpression $experimentHandle Evaluated at render time and cast to a string.
      * @param array<string, Node> $variantBodies
      */
-    public function __construct(string $experimentHandle, array $variantBodies, int $lineno, string $tag)
+    public function __construct(AbstractExpression $experimentHandle, array $variantBodies, int $lineno, string $tag)
     {
-        $this->experimentHandle = $experimentHandle;
         $this->variantBodies = $variantBodies;
 
-        parent::__construct(['variants' => new Node($variantBodies)], [], $lineno, $tag);
+        parent::__construct(['handle' => $experimentHandle, 'variants' => new Node($variantBodies)], [], $lineno, $tag);
     }
 
     public function compile(Compiler $compiler): void
     {
+        $id = $compiler->getVarName();
+        $experiment = '$_winkExperiment' . $id;
+        $bodies = '$_winkBodies' . $id;
+        $visitorId = '$_winkVisitorId' . $id;
+        $variant = '$_winkVariant' . $id;
+
         $compiler
             ->addDebugInfo($this)
             ->write('$_winkPlugin = \\justinholtweb\\wink\\Plugin::getInstance();' . "\n")
-            ->write('$_winkExperiment = $_winkPlugin->experiments->getRunningExperiment(' . var_export($this->experimentHandle, true) . ');' . "\n")
-            ->write('if ($_winkExperiment && $_winkPlugin->delivery->isCacheSafe($_winkExperiment)) {' . "\n")
+            ->write($experiment . ' = $_winkPlugin->experiments->getRunningExperiment((string)(')
+            ->subcompile($this->getNode('handle'))
+            ->raw('));' . "\n")
+            ->write('if (' . $experiment . ' && $_winkPlugin->delivery->isCacheSafe(' . $experiment . ')) {' . "\n")
             ->indent()
-            ->write('$_winkBodies = [];' . "\n");
+            ->write($bodies . ' = [];' . "\n");
 
         foreach ($this->variantBodies as $handle => $body) {
             $capture = new CaptureNode($body, $body->getTemplateLine());
             $capture->setAttribute('raw', true);
             $compiler
-                ->write('$_winkBodies[' . var_export((string)$handle, true) . '] = ')
+                ->write($bodies . '[' . var_export((string)$handle, true) . '] = ')
                 ->subcompile($capture)
                 ->raw("\n");
         }
 
         $compiler
-            ->write('echo $_winkPlugin->delivery->renderCacheSafe($_winkExperiment, $_winkBodies);' . "\n")
+            ->write('echo $_winkPlugin->delivery->renderCacheSafe(' . $experiment . ', ' . $bodies . ');' . "\n")
             ->outdent()
-            ->write('} elseif ($_winkExperiment) {' . "\n")
+            ->write('} elseif (' . $experiment . ') {' . "\n")
             ->indent()
             // A visitor who hasn't consented (when consent is required) gets the control, no cookie
             // and no impression.
-            ->write('$_winkVisitorId = $_winkPlugin->assignment->hasConsent() ? $_winkPlugin->assignment->getVisitorId() : null;' . "\n")
-            ->write('$_winkVariant = $_winkVisitorId !== null ? $_winkPlugin->assignment->assignVariant($_winkVisitorId, $_winkExperiment) : $_winkPlugin->assignment->getFallbackVariant($_winkExperiment);' . "\n")
-            ->write('if ($_winkVariant) {' . "\n")
+            ->write($visitorId . ' = $_winkPlugin->assignment->hasConsent() ? $_winkPlugin->assignment->getVisitorId() : null;' . "\n")
+            ->write($variant . ' = ' . $visitorId . ' !== null ? $_winkPlugin->assignment->assignVariant(' . $visitorId . ', ' . $experiment . ') : $_winkPlugin->assignment->getFallbackVariant(' . $experiment . ');' . "\n")
+            ->write('if (' . $variant . ') {' . "\n")
             ->indent()
-            ->write('if ($_winkVisitorId !== null) {' . "\n")
+            ->write('if (' . $visitorId . ' !== null) {' . "\n")
             ->indent()
-            ->write('$_winkPlugin->tracking->recordImpression($_winkExperiment->id, $_winkVariant->id, $_winkVisitorId);' . "\n")
+            ->write('$_winkPlugin->tracking->recordImpression(' . $experiment . '->id, ' . $variant . '->id, ' . $visitorId . ');' . "\n")
             ->outdent()
             ->write('}' . "\n")
-            ->write('echo \'<div data-wink-experiment="\' . htmlspecialchars(' . var_export($this->experimentHandle, true) . ') . \'" data-wink-variant="\' . htmlspecialchars($_winkVariant->handle) . \'">\';' . "\n");
+            ->write('echo \'<div data-wink-experiment="\' . htmlspecialchars(' . $experiment . '->handle) . \'" data-wink-variant="\' . htmlspecialchars(' . $variant . '->handle) . \'">\';' . "\n");
 
         // Generate if/elseif chain for each variant handle
         $first = true;
         foreach ($this->variantBodies as $handle => $body) {
             if ($first) {
-                $compiler->write('if ($_winkVariant->handle === ' . var_export($handle, true) . ') {' . "\n");
+                $compiler->write('if (' . $variant . '->handle === ' . var_export((string)$handle, true) . ') {' . "\n");
                 $first = false;
             } else {
-                $compiler->write('} elseif ($_winkVariant->handle === ' . var_export($handle, true) . ') {' . "\n");
+                $compiler->write('} elseif (' . $variant . '->handle === ' . var_export((string)$handle, true) . ') {' . "\n");
             }
             $compiler->indent()->subcompile($body)->outdent();
         }

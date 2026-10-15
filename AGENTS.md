@@ -43,7 +43,7 @@ src/
 │   ├── TrackingController.php    # Frontend POST + pixel GIF (anonymous, CSRF-exempt)
 │   └── SettingsController.php    # Plugin settings save
 ├── twig/                         # Twig integration
-│   ├── WinkTwigExtension.php     # winkVariant(), winkExperiment(), winkTrackingScript()
+│   ├── WinkTwigExtension.php     # winkVariant(), winkRender(), winkExperiment(), winkTrackingScript()
 │   ├── WinkTokenParser.php       # {% experiment %} / {% variant %} block tag parser
 │   └── WinkNode.php              # Compiled Twig node for experiment blocks
 ├── variables/

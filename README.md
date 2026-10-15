@@ -49,6 +49,17 @@ php craft plugin/install wink
     {% variant 'variant-a' %}<h1>Discover</h1>{% endvariant %}
 {% endexperiment %}
 
+{# The handle can be any expression, e.g. a page-builder block's own field #}
+{% experiment block.experimentHandle %}
+    {% variant 'control' %}{% for child in block.variantA.all() %}…{% endfor %}{% endvariant %}
+    {% variant 'variant-a' %}{% for child in block.variantB.all() %}…{% endfor %}{% endvariant %}
+{% endexperiment %}
+
+{# Or hand over bodies you've already rendered, keyed by variant handle (output unescaped) #}
+{% set a %}…{% endset %}
+{% set b %}…{% endset %}
+{{ winkRender(block.experimentHandle, { control: a, 'variant-a': b }) }}
+
 {# Add tracking script before </body> #}
 {{ winkTrackingScript() }}
 ```
@@ -129,7 +140,7 @@ Event::on(DeliveryService::class, DeliveryService::EVENT_DETECT_PAGE_CACHE, func
 
 In cache-safe mode:
 
-- `{% experiment %}` and `winkVariant()` render cache-safe markup. `winkExperiment()` and
+- `{% experiment %}`, `winkRender()` and `winkVariant()` render cache-safe markup. `winkExperiment()` and
   `craft.wink.variant()` hand the visitor's variant to your template, so they always run
   server-side; don't use them on cached pages.
 - Impressions are recorded by the browser through `/wink/track` — by the tracker if

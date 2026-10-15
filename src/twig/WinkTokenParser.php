@@ -12,6 +12,9 @@ use Twig\TokenParser\AbstractTokenParser;
  *   {% variant 'control' %}<h1>Welcome</h1>{% endvariant %}
  *   {% variant 'variant-a' %}<h1>Discover</h1>{% endvariant %}
  * {% endexperiment %}
+ *
+ * The experiment handle is any expression, so a page-builder block can pass its own field value:
+ * `{% experiment block.experimentHandle %}`. Variant handles stay string literals.
  */
 class WinkTokenParser extends AbstractTokenParser
 {
@@ -25,8 +28,12 @@ class WinkTokenParser extends AbstractTokenParser
         $lineno = $token->getLine();
         $stream = $this->parser->getStream();
 
-        // Parse experiment handle: {% experiment 'handle' %}
-        $experimentHandle = $stream->expect(Token::STRING_TYPE)->getValue();
+        // Parse experiment handle: {% experiment 'handle' %} or {% experiment block.handle %}.
+        // Parser::parseExpression() arrived in Twig 3.21; older Twig only has the expression parser.
+        // @phpstan-ignore function.alreadyNarrowedType
+        $experimentHandle = method_exists($this->parser, 'parseExpression')
+            ? $this->parser->parseExpression()
+            : $this->parser->getExpressionParser()->parseExpression();
         $stream->expect(Token::BLOCK_END_TYPE);
 
         // Parse variant blocks

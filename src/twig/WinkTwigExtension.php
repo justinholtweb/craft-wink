@@ -22,6 +22,7 @@ class WinkTwigExtension extends AbstractExtension
     {
         return [
             new TwigFunction('winkVariant', [$this, 'winkVariant'], ['is_safe' => ['html']]),
+            new TwigFunction('winkRender', [$this, 'winkRender'], ['is_safe' => ['html']]),
             new TwigFunction('winkExperiment', [$this, 'winkExperiment']),
             new TwigFunction('winkTrackingScript', [$this, 'winkTrackingScript'], ['is_safe' => ['html']]),
         ];
@@ -52,6 +53,30 @@ class WinkTwigExtension extends AbstractExtension
         }
 
         return $variant->content ?? '';
+    }
+
+    /**
+     * Renders an experiment block from variant bodies the template has already rendered, like the
+     * {% experiment %} tag: cache-safe or server-side as the experiment is delivered, and nothing
+     * when the experiment isn't running. The bodies are output as they are, unescaped.
+     *
+     * Usage:
+     *   {% set a %}{% for b in block.variantA.all() %}…{% endfor %}{% endset %}
+     *   {{ winkRender(block.experimentHandle, { control: a, 'variant-b': b }) }}
+     *
+     * @param array<string, mixed> $bodies Rendered HTML keyed by variant handle.
+     */
+    public function winkRender(?string $handle, array $bodies): string
+    {
+        $experiment = $handle ? Plugin::getInstance()->experiments->getRunningExperiment($handle) : null;
+        if (!$experiment) {
+            return '';
+        }
+
+        return Plugin::getInstance()->delivery->render(
+            $experiment,
+            array_map(fn($body) => (string)$body, $bodies),
+        );
     }
 
     /**

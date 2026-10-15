@@ -145,6 +145,48 @@ class DeliveryService extends Component
     }
 
     /**
+     * An experiment block from bodies already rendered, delivered the way the experiment is: every
+     * body for the browser to choose from when cache-safe, else the visitor's alone. The same
+     * output the {% experiment %} tag gives, for templates that render the variants themselves.
+     *
+     * @param array<string, string> $bodies Rendered HTML keyed by variant handle.
+     */
+    public function render(Experiment $experiment, array $bodies): string
+    {
+        return $this->isCacheSafe($experiment)
+            ? $this->renderCacheSafe($experiment, $bodies)
+            : $this->renderServerSide($experiment, $bodies);
+    }
+
+    /**
+     * The visitor's variant body, wrapped for the tracker, with the impression recorded. A visitor
+     * who hasn't consented (when consent is required) gets the control, no cookie and no impression.
+     *
+     * @param array<string, string> $bodies Rendered HTML keyed by variant handle.
+     */
+    public function renderServerSide(Experiment $experiment, array $bodies): string
+    {
+        $plugin = Plugin::getInstance();
+        $visitorId = $plugin->assignment->hasConsent() ? $plugin->assignment->getVisitorId() : null;
+        $variant = $visitorId !== null
+            ? $plugin->assignment->assignVariant($visitorId, $experiment)
+            : $plugin->assignment->getFallbackVariant($experiment);
+
+        if (!$variant) {
+            return '';
+        }
+
+        if ($visitorId !== null) {
+            $plugin->tracking->recordImpression($experiment->id, $variant->id, $visitorId);
+        }
+
+        return Html::tag('div', $bodies[$variant->handle] ?? '', [
+            'data-wink-experiment' => $experiment->handle,
+            'data-wink-variant' => $variant->handle,
+        ]);
+    }
+
+    /**
      * What the runtime needs to assign a visitor exactly as {@see AssignmentService::assignVariant()}
      * does. Variants are in the order the server walks them; none of this varies by visitor.
      *
