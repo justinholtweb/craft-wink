@@ -125,49 +125,48 @@
     </div>
 {% endblock %}
 
+{% do view.registerAssetBundle('justinholtweb\\wink\\web\\assets\\chartjs\\ChartJsAsset') %}
 {% js %}
-// Load Chart.js from CDN
-var script = document.createElement('script');
-script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js';
-script.onload = function() {
-    Craft.sendActionRequest('GET', null, {
-        url: Craft.getCpUrl('wink/reports/chart-data', {
-            experimentId: {{ experiment.id }},
-            goalId: '{{ selectedGoalId ?? '' }}'
-        })
-    }).then(function(response) {
-        var ctx = document.getElementById('wink-chart').getContext('2d');
-        new Chart(ctx, {
-            type: 'line',
-            data: response.data,
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Conversion Rate (%)'
-                        }
-                    },
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Date'
-                        }
+// The action goes in the action argument and the query in params: sendActionRequest() replaces
+// any url it is given, so before 5.2.0 this asked for the dashboard and the chart stayed empty.
+Craft.sendActionRequest('GET', 'wink/reports/chart-data', {
+    params: {
+        experimentId: {{ experiment.id }},
+        goalId: {{ (selectedGoalId ?? '')|json_encode|raw }}
+    }
+}).then(function(response) {
+    var ctx = document.getElementById('wink-chart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: response.data,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: {{ 'Conversion Rate (%)'|t('wink')|json_encode|raw }}
                     }
                 },
-                plugins: {
-                    legend: {
-                        position: 'top'
+                x: {
+                    title: {
+                        display: true,
+                        text: {{ 'Date'|t('wink')|json_encode|raw }}
                     }
                 }
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
             }
-        });
+        }
     });
-};
-document.head.appendChild(script);
+}).catch(function() {
+    Craft.cp.displayError({{ 'Could not load the chart.'|t('wink')|json_encode|raw }});
+});
 
 // Declare winner buttons
 document.querySelectorAll('.wink-declare-winner').forEach(function(btn) {

@@ -12,6 +12,7 @@ return [
     'anonymizeIp' => false,
     'cookieName' => '_wink_vid',
     'cookieDuration' => 365,
+    'requireConsent' => false, // no cookie or tracking until Wink.consent() (or the _wink_consent cookie)
     'trackingBudgetPerMinute' => 120, // events one address may send per minute; 0 = no limit
 
     // Delivery: 'auto' (cache-safe when Blitz is caching), 'server' or 'cacheSafe'

@@ -2,8 +2,10 @@
 
 namespace justinholtweb\wink\tests\integration;
 
+use justinholtweb\wink\elements\Experiment;
 use justinholtweb\wink\enums\ExperimentStatus;
 use justinholtweb\wink\enums\GoalType;
+use justinholtweb\wink\models\Goal;
 use justinholtweb\wink\models\Variant;
 use justinholtweb\wink\Plugin;
 use justinholtweb\wink\records\VariantRecord;
@@ -297,5 +299,150 @@ final class ExperimentServiceTest extends WinkTestCase
 
         $this->assertSame('/thank-you*', $goal->goalTarget);
         $this->assertSame(GoalType::Pageview, $goal->goalType);
+    }
+
+    /**
+     * Regression: a removed row's handle couldn't be reused in the same save, because the new row
+     * was inserted before the old one was deleted and tripped the unique index.
+     */
+    public function testARemovedHandleCanBeReusedInTheSameSave(): void
+    {
+        $experiment = $this->createExperiment(['handle' => 'reuse-handle']);
+        [$control, $old] = $this->addVariants($experiment, [
+            ['handle' => 'control', 'isControl' => true],
+            ['handle' => 'variant-a'],
+        ]);
+
+        $replacement = new Variant(['handle' => 'variant-a', 'title' => 'Fresh', 'weight' => 50]);
+        $this->assertTrue($this->service()->saveVariants($experiment->id, [$control, $replacement]));
+
+        $variants = $this->service()->getVariantsByExperimentId($experiment->id);
+        $this->assertSame(['control', 'variant-a'], array_map(fn(Variant $v) => $v->handle, $variants));
+        $this->assertNotSame($old->id, $variants[1]->id);
+        $this->assertSame('Fresh', $variants[1]->title);
+
+        [$goal] = $this->addGoals($experiment, [['handle' => 'signup', 'goalTarget' => '/a']]);
+        $this->assertTrue($this->service()->saveGoals($experiment->id, [
+            new Goal(['handle' => 'signup', 'name' => 'Again', 'goalType' => GoalType::Click, 'goalTarget' => '.b']),
+        ]));
+        $this->assertSame('Again', $this->service()->getGoalByHandle($experiment->id, 'signup')->name);
+    }
+
+    public function testRunningExperimentsWithGoalFindsOnlyRunningOnes(): void
+    {
+        $running = $this->createExperiment(['handle' => 'goal-running', 'experimentStatus' => 'running']);
+        $other = $this->createExperiment(['handle' => 'goal-running-2', 'experimentStatus' => 'running']);
+        $paused = $this->createExperiment(['handle' => 'goal-paused', 'experimentStatus' => 'paused']);
+        $this->addGoals($running, [['handle' => 'purchase']]);
+        $this->addGoals($other, [['handle' => 'signup']]);
+        $this->addGoals($paused, [['handle' => 'purchase']]);
+
+        $found = $this->service()->getRunningExperimentsWithGoal('purchase');
+
+        $this->assertSame([$running->id], array_map(fn($e) => $e->id, $found));
+        $this->assertSame([], $this->service()->getRunningExperimentsWithGoal('nobody-has-this'));
+    }
+
+    // ---- validation (#5) ----------------------------------------------------
+
+    /**
+     * @param array<int, array<string, mixed>> $variants
+     * @param array<int, array<string, mixed>> $goals
+     * @return array{bool, Experiment, Variant[], Goal[]}
+     */
+    private function validate(array $variants, array $goals): array
+    {
+        $experiment = new Experiment();
+        $variantModels = array_map(fn(array $config) => new Variant($config + ['title' => 'T']), $variants);
+        $goalModels = array_map(fn(array $config) => new Goal($config + ['name' => 'N']), $goals);
+        $valid = $this->service()->validateVariants($experiment, $variantModels);
+        $valid = $this->service()->validateGoals($experiment, $goalModels) && $valid;
+
+        return [$valid, $experiment, $variantModels, $goalModels];
+    }
+
+    private function validVariants(): array
+    {
+        return [
+            ['handle' => 'control', 'weight' => 50, 'isControl' => true],
+            ['handle' => 'b', 'weight' => 30],
+            ['handle' => 'c', 'weight' => 20],
+        ];
+    }
+
+    private function validGoals(): array
+    {
+        return [
+            ['handle' => 'thanks', 'goalType' => GoalType::Pageview, 'goalTarget' => '/thanks*'],
+            ['handle' => 'custom', 'goalType' => GoalType::CustomEvent],
+        ];
+    }
+
+    public function testThreeVariantsAndTwoGoalsAreValid(): void
+    {
+        [$valid, $experiment] = $this->validate($this->validVariants(), $this->validGoals());
+
+        $this->assertTrue($valid, json_encode($experiment->getErrors()));
+    }
+
+    public function testWeightsMustAddUpTo100(): void
+    {
+        $variants = $this->validVariants();
+        $variants[2]['weight'] = 30;
+
+        [$valid, $experiment] = $this->validate($variants, $this->validGoals());
+
+        $this->assertFalse($valid);
+        $this->assertStringContainsString('110', $experiment->getFirstError('variants'));
+    }
+
+    public function testExactlyOneControlIsRequired(): void
+    {
+        $variants = $this->validVariants();
+        $variants[0]['isControl'] = false;
+
+        [$valid, $experiment] = $this->validate($variants, $this->validGoals());
+
+        $this->assertFalse($valid);
+        $this->assertNotNull($experiment->getFirstError('variants'));
+    }
+
+    public function testAtLeastTwoVariantsAndOneGoalAreRequired(): void
+    {
+        [$valid, $experiment] = $this->validate([['handle' => 'control', 'weight' => 100, 'isControl' => true]], []);
+
+        $this->assertFalse($valid);
+        $this->assertNotNull($experiment->getFirstError('variants'));
+        $this->assertNotNull($experiment->getFirstError('goals'));
+    }
+
+    public function testHandlesMustBeUniqueAndPresent(): void
+    {
+        $variants = $this->validVariants();
+        $variants[2]['handle'] = 'b';
+        $goals = $this->validGoals();
+        $goals[1]['handle'] = '';
+
+        [$valid, , $variantModels, $goalModels] = $this->validate($variants, $goals);
+
+        $this->assertFalse($valid);
+        $this->assertFalse($variantModels[1]->hasErrors());
+        $this->assertTrue($variantModels[2]->hasErrors('handle'));
+        $this->assertTrue($goalModels[1]->hasErrors('handle'));
+    }
+
+    public function testDetectedGoalsNeedATarget(): void
+    {
+        $goals = [
+            ['handle' => 'view', 'goalType' => GoalType::Pageview],
+            ['handle' => 'click', 'goalType' => GoalType::Click, 'goalTarget' => '  '],
+            ['handle' => 'form', 'goalType' => GoalType::FormSubmit],
+            ['handle' => 'custom', 'goalType' => GoalType::CustomEvent],
+        ];
+
+        [$valid, , , $goalModels] = $this->validate($this->validVariants(), $goals);
+
+        $this->assertFalse($valid);
+        $this->assertSame([true, true, true, false], array_map(fn(Goal $g) => $g->hasErrors('goalTarget'), $goalModels));
     }
 }

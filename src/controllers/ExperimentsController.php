@@ -30,19 +30,26 @@ class ExperimentsController extends Controller
         return $this->renderTemplate('wink/experiments/_index');
     }
 
-    public function actionEdit(?int $experimentId = null): Response
+    public function actionEdit(?int $experimentId = null, ?Experiment $experiment = null): Response
     {
-        if ($experimentId) {
+        if ($experiment === null && $experimentId) {
             $experiment = Plugin::getInstance()->experiments->getExperimentById($experimentId);
             if (!$experiment) {
                 throw new NotFoundHttpException('Experiment not found');
             }
-            $title = $experiment->title;
-        } else {
+        } elseif ($experiment === null) {
             $experiment = new Experiment();
             $experiment->experimentStatus = 'draft';
-            $title = Craft::t('wink', 'New Experiment');
+            $experiment->setVariants([
+                new Variant(['handle' => 'control', 'title' => Craft::t('wink', 'Control'), 'weight' => 50, 'isControl' => true]),
+                new Variant(['handle' => 'variant-a', 'title' => Craft::t('wink', 'Variant A'), 'weight' => 50]),
+            ]);
+            $experiment->setGoals([
+                new Goal(['name' => Craft::t('wink', 'Primary Goal'), 'handle' => 'primary-goal', 'goalType' => GoalType::Pageview, 'isPrimary' => true]),
+            ]);
         }
+
+        $title = $experiment->id ? $experiment->title : Craft::t('wink', 'New Experiment');
 
         return $this->renderTemplate('wink/experiments/_edit', [
             'experiment' => $experiment,
@@ -80,48 +87,47 @@ class ExperimentsController extends Controller
             $experiment->experimentStatus = 'draft';
         }
 
-        if (!Plugin::getInstance()->experiments->saveExperiment($experiment)) {
+        // Variants and goals are replaced only when posted; a request with neither leaves them be.
+        $variants = $request->getBodyParam('variants') !== null ? $this->_postedVariants() : null;
+        $goals = $request->getBodyParam('goals') !== null ? $this->_postedGoals() : null;
+
+        // Everything is checked before anything is saved: before 5.2.0 the experiment was saved
+        // first, and a variant or goal that failed afterwards was dropped without a word.
+        $service = Plugin::getInstance()->experiments;
+        $valid = $experiment->validate();
+        if ($variants !== null) {
+            $experiment->setVariants($variants);
+            $valid = $service->validateVariants($experiment, $variants) && $valid;
+        }
+        if ($goals !== null) {
+            $experiment->setGoals($goals);
+            $valid = $service->validateGoals($experiment, $goals) && $valid;
+        }
+
+        if ($valid) {
+            $isNew = !$experiment->id;
+            $transaction = Craft::$app->getDb()->beginTransaction();
+            try {
+                $valid = $service->saveExperiment($experiment)
+                    && ($variants === null || $service->saveVariants($experiment->id, $variants))
+                    && ($goals === null || $service->saveGoals($experiment->id, $goals));
+                $valid ? $transaction->commit() : $transaction->rollBack();
+            } catch (\Throwable $e) {
+                $transaction->rollBack();
+                throw $e;
+            }
+            // A rolled-back new experiment must not come back to the form with the ID it never kept.
+            if (!$valid && $isNew) {
+                $experiment->id = null;
+            }
+        }
+
+        if (!$valid) {
             Craft::$app->getSession()->setError(Craft::t('wink', 'Couldn\'t save experiment.'));
             Craft::$app->getUrlManager()->setRouteParams([
                 'experiment' => $experiment,
             ]);
             return null;
-        }
-
-        // Save variants
-        $variantsData = $request->getBodyParam('variants', []);
-        $variants = [];
-        foreach ($variantsData as $i => $data) {
-            $variant = new Variant();
-            $variant->id = !empty($data['id']) ? (int)$data['id'] : null;
-            $variant->handle = $data['handle'] ?? '';
-            $variant->title = $data['title'] ?? '';
-            $variant->content = $data['content'] ?? '';
-            $variant->weight = (int)($data['weight'] ?? 50);
-            $variant->isControl = (bool)($data['isControl'] ?? false);
-            $variants[] = $variant;
-        }
-
-        if (!empty($variants)) {
-            Plugin::getInstance()->experiments->saveVariants($experiment->id, $variants);
-        }
-
-        // Save goals
-        $goalsData = $request->getBodyParam('goals', []);
-        $goals = [];
-        foreach ($goalsData as $data) {
-            $goal = new Goal();
-            $goal->id = !empty($data['id']) ? (int)$data['id'] : null;
-            $goal->name = $data['name'] ?? '';
-            $goal->handle = $data['handle'] ?? '';
-            $goal->goalType = GoalType::from($data['goalType'] ?? 'pageview');
-            $goal->goalTarget = $data['goalTarget'] ?? null;
-            $goal->isPrimary = (bool)($data['isPrimary'] ?? false);
-            $goals[] = $goal;
-        }
-
-        if (!empty($goals)) {
-            Plugin::getInstance()->experiments->saveGoals($experiment->id, $goals);
         }
 
         Craft::$app->getSession()->setNotice(Craft::t('wink', 'Experiment saved.'));
@@ -152,7 +158,9 @@ class ExperimentsController extends Controller
 
         $request = Craft::$app->getRequest();
         $experimentId = $request->getRequiredBodyParam('id');
-        $action = $request->getRequiredBodyParam('action');
+        // Not `action`: Craft reserves that body param for routing, and Craft.sendActionRequest()
+        // strips it from the data, so before 5.2.0 every status button answered 400.
+        $transition = $request->getRequiredBodyParam('transition');
 
         $experiment = Plugin::getInstance()->experiments->getExperimentById($experimentId);
         if (!$experiment) {
@@ -161,7 +169,7 @@ class ExperimentsController extends Controller
 
         $service = Plugin::getInstance()->experiments;
 
-        $success = match ($action) {
+        $success = match ($transition) {
             'start' => $service->startExperiment($experiment),
             'pause' => $service->pauseExperiment($experiment),
             'complete' => $service->completeExperiment(
@@ -177,5 +185,74 @@ class ExperimentsController extends Controller
         }
 
         return $this->asSuccess(Craft::t('wink', 'Experiment status updated.'));
+    }
+
+    /**
+     * The variant rows as posted, in order. The control is a radio (`controlVariant`) naming one
+     * row's key; a per-row `isControl` is still read for anything posting the old form.
+     *
+     * @return Variant[]
+     */
+    private function _postedVariants(): array
+    {
+        $request = Craft::$app->getRequest();
+        $rows = $request->getBodyParam('variants', []);
+        $controlKey = $request->getBodyParam('controlVariant');
+        $variants = [];
+
+        foreach (is_array($rows) ? $rows : [] as $key => $data) {
+            if (!is_array($data)) {
+                continue;
+            }
+            $variant = new Variant();
+            $variant->id = !empty($data['id']) ? (int)$data['id'] : null;
+            $variant->handle = trim((string)($data['handle'] ?? ''));
+            $variant->title = trim((string)($data['title'] ?? ''));
+            $variant->content = (string)($data['content'] ?? '');
+            $variant->weight = (int)($data['weight'] ?? 0);
+            $variant->isControl = $controlKey !== null
+                ? (string)$key === (string)$controlKey
+                : (bool)($data['isControl'] ?? false);
+            $variants[] = $variant;
+        }
+
+        return $variants;
+    }
+
+    /**
+     * The goal rows as posted, in order. The primary goal is a radio (`primaryGoal`); with none
+     * chosen, the first goal is primary.
+     *
+     * @return Goal[]
+     */
+    private function _postedGoals(): array
+    {
+        $request = Craft::$app->getRequest();
+        $rows = $request->getBodyParam('goals', []);
+        $primaryKey = $request->getBodyParam('primaryGoal');
+        $goals = [];
+
+        foreach (is_array($rows) ? $rows : [] as $key => $data) {
+            if (!is_array($data)) {
+                continue;
+            }
+            $goal = new Goal();
+            $goal->id = !empty($data['id']) ? (int)$data['id'] : null;
+            $goal->name = trim((string)($data['name'] ?? ''));
+            $goal->handle = trim((string)($data['handle'] ?? ''));
+            $goal->goalType = GoalType::tryFrom((string)($data['goalType'] ?? '')) ?? GoalType::Pageview;
+            $target = trim((string)($data['goalTarget'] ?? ''));
+            $goal->goalTarget = $target !== '' ? $target : null;
+            $goal->isPrimary = $primaryKey !== null
+                ? (string)$key === (string)$primaryKey
+                : (bool)($data['isPrimary'] ?? false);
+            $goals[] = $goal;
+        }
+
+        if ($goals && !array_filter($goals, fn(Goal $goal) => $goal->isPrimary)) {
+            $goals[0]->isPrimary = true;
+        }
+
+        return $goals;
     }
 }

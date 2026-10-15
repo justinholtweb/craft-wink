@@ -37,6 +37,11 @@ abstract class WinkTestCase extends TestCase
             $this->forcedWebRequest = false;
         }
 
+        if ($this->setRawCookies) {
+            $this->setRawRequestCookies([]);
+            $this->setRawCookies = false;
+        }
+
         parent::tearDown();
     }
 
@@ -62,6 +67,7 @@ abstract class WinkTestCase extends TestCase
     }
 
     private bool $forcedWebRequest = false;
+    private bool $setRawCookies = false;
 
     /**
      * Point the current request at a client IP.
@@ -96,6 +102,26 @@ abstract class WinkTestCase extends TestCase
         );
 
         $property = new \ReflectionProperty(\yii\web\Request::class, '_cookies');
+        $property->setAccessible(true);
+        $property->setValue(Craft::$app->getRequest(), $collection);
+    }
+
+    /**
+     * Put raw (unsigned) cookies on the request, as a browser sends the visitor and consent
+     * cookies. Craft builds its raw cookie collection once, so it is swapped wholesale.
+     *
+     * @param array<string, string> $cookies
+     */
+    protected function setRawRequestCookies(array $cookies): void
+    {
+        $this->setRawCookies = $cookies !== [];
+        $items = [];
+        foreach ($cookies as $name => $value) {
+            $items[$name] = new \yii\web\Cookie(['name' => $name, 'value' => $value]);
+        }
+        $collection = new \yii\web\CookieCollection($items, ['readOnly' => true]);
+
+        $property = new \ReflectionProperty(\craft\web\Request::class, '_rawCookies');
         $property->setAccessible(true);
         $property->setValue(Craft::$app->getRequest(), $collection);
     }

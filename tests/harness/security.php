@@ -173,7 +173,7 @@ check('a control panel user with no Wink permission can’t open experiments, re
 
 check('…or pause, end or delete an experiment', function() use ($nobodyPost, $experiment, $status, $statusValue) {
     $codes = [
-        $nobodyPost('wink/experiments/update-status', ['id' => $experiment->id, 'action' => 'pause']),
+        $nobodyPost('wink/experiments/update-status', ['id' => $experiment->id, 'transition' => 'pause']),
         $nobodyPost('wink/reports/declare-winner', ['experimentId' => $experiment->id, 'winnerVariantId' => 1]),
         $nobodyPost('wink/experiments/delete', ['id' => $experiment->id]),
     ];
@@ -197,9 +197,9 @@ check('…but can’t end the experiment from them, or edit it', function() use 
 });
 
 check('someone who manages experiments can pause and restart one', function() use ($managerPost, $experiment, $status, $statusValue) {
-    $pause = $managerPost('wink/experiments/update-status', ['id' => $experiment->id, 'action' => 'pause']);
+    $pause = $managerPost('wink/experiments/update-status', ['id' => $experiment->id, 'transition' => 'pause']);
     $paused = $statusValue($status());
-    $start = $managerPost('wink/experiments/update-status', ['id' => $experiment->id, 'action' => 'start']);
+    $start = $managerPost('wink/experiments/update-status', ['id' => $experiment->id, 'transition' => 'start']);
 
     return $pause === 200 && $paused === 'paused' && $start === 200 && $statusValue($status()) === 'running' ?: "pause $pause ($paused), start $start";
 });

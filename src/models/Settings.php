@@ -17,6 +17,12 @@ class Settings extends Model
     public string $cookieName = '_wink_vid';
     public int $cookieDuration = 365;
 
+    /**
+     * Set no cookie and record nothing for a visitor until they consent, through `Wink.consent()`
+     * or the `_wink_consent` cookie. Until then they see each experiment's control.
+     */
+    public bool $requireConsent = false;
+
     // Delivery
     /**
      * How experiment blocks reach the page, unless an experiment says otherwise:

@@ -4,7 +4,9 @@ namespace justinholtweb\wink\twig;
 
 use Craft;
 use justinholtweb\wink\elements\Experiment;
+use justinholtweb\wink\enums\GoalType;
 use justinholtweb\wink\Plugin;
+use justinholtweb\wink\services\AssignmentService;
 use justinholtweb\wink\web\assets\tracking\TrackingAsset;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
@@ -66,19 +68,24 @@ class WinkTwigExtension extends AbstractExtension
             return null;
         }
 
-        $visitorId = Plugin::getInstance()->assignment->getVisitorId();
-        $variant = Plugin::getInstance()->assignment->assignVariant($visitorId, $experiment);
+        $assignment = Plugin::getInstance()->assignment;
+        $visitorId = $assignment->hasConsent() ? $assignment->getVisitorId() : null;
+        $variant = $visitorId !== null
+            ? $assignment->assignVariant($visitorId, $experiment)
+            : $assignment->getFallbackVariant($experiment);
 
         if (!$variant) {
             return null;
         }
 
-        // Record impression
-        Plugin::getInstance()->tracking->recordImpression(
-            $experiment->id,
-            $variant->id,
-            $visitorId,
-        );
+        // Record impression (not for a visitor who hasn't consented, who sees the control)
+        if ($visitorId !== null) {
+            Plugin::getInstance()->tracking->recordImpression(
+                $experiment->id,
+                $variant->id,
+                $visitorId,
+            );
+        }
 
         return (object)[
             'experiment' => $experiment,
@@ -112,15 +119,28 @@ class WinkTwigExtension extends AbstractExtension
             'enableGa4' => $settings->enableGa4,
             'enableGtm' => $settings->enableGtm,
             'gtmEventName' => $settings->gtmEventName,
-            'clickGoals' => $this->_getActiveClickGoals(),
+            'goals' => $this->_getActiveGoals(),
+            'requireConsent' => $settings->requireConsent,
+            'cookies' => [
+                'consent' => AssignmentService::CONSENT_COOKIE,
+                'visitor' => $settings->cookieName,
+                'days' => $settings->cookieDuration,
+                'domain' => (string)(Craft::cookieConfig()['domain'] ?? ''),
+            ],
         ];
 
-        // Click-goal selectors and the GTM event name are written in the control panel; hex-escape
-        // them so a `</script>` in one can't end this tag early.
+        // Goal targets and the GTM event name are written in the control panel; hex-escape them so
+        // a `</script>` in one can't end this tag early.
         return '<script>window._winkConfig = ' . json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ';</script>';
     }
 
-    private function _getActiveClickGoals(): array
+    /**
+     * The goals the tracker detects on its own, for every running experiment: page views (a URL
+     * pattern), clicks and form submits (a CSS selector). Before 5.2.0 only clicks were passed,
+     * so page view and form submit goals never converted. Custom event goals are sent by the
+     * site's own script, with `Wink.convert()`.
+     */
+    private function _getActiveGoals(): array
     {
         $goals = [];
         $experiments = Experiment::find()
@@ -129,10 +149,11 @@ class WinkTwigExtension extends AbstractExtension
 
         foreach ($experiments as $experiment) {
             foreach ($experiment->getGoals() as $goal) {
-                if ($goal->goalType->value === 'click' && $goal->goalTarget) {
+                if ($goal->goalType !== GoalType::CustomEvent && $goal->goalTarget) {
                     $goals[] = [
+                        'type' => $goal->goalType->value,
                         'handle' => $goal->handle,
-                        'selector' => $goal->goalTarget,
+                        'target' => $goal->goalTarget,
                         'experiment' => $experiment->handle,
                     ];
                 }

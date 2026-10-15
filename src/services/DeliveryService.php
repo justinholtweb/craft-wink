@@ -165,6 +165,8 @@ class DeliveryService extends Component
             'cookie' => $settings->cookieName,
             'days' => $settings->cookieDuration,
             'domain' => (string)(Craft::cookieConfig()['domain'] ?? ''),
+            // With consent required, the runtime shows the control and sets no cookie until this one is `1`.
+            'consent' => $settings->requireConsent ? AssignmentService::CONSENT_COOKIE : false,
             'track' => $settings->enableTracking ? [
                 'url' => '/wink/track',
                 'dnt' => $settings->respectDnt,

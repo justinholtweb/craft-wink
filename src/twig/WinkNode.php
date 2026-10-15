@@ -57,11 +57,17 @@ class WinkNode extends Node
             ->outdent()
             ->write('} elseif ($_winkExperiment) {' . "\n")
             ->indent()
-            ->write('$_winkVisitorId = $_winkPlugin->assignment->getVisitorId();' . "\n")
-            ->write('$_winkVariant = $_winkPlugin->assignment->assignVariant($_winkVisitorId, $_winkExperiment);' . "\n")
+            // A visitor who hasn't consented (when consent is required) gets the control, no cookie
+            // and no impression.
+            ->write('$_winkVisitorId = $_winkPlugin->assignment->hasConsent() ? $_winkPlugin->assignment->getVisitorId() : null;' . "\n")
+            ->write('$_winkVariant = $_winkVisitorId !== null ? $_winkPlugin->assignment->assignVariant($_winkVisitorId, $_winkExperiment) : $_winkPlugin->assignment->getFallbackVariant($_winkExperiment);' . "\n")
             ->write('if ($_winkVariant) {' . "\n")
             ->indent()
+            ->write('if ($_winkVisitorId !== null) {' . "\n")
+            ->indent()
             ->write('$_winkPlugin->tracking->recordImpression($_winkExperiment->id, $_winkVariant->id, $_winkVisitorId);' . "\n")
+            ->outdent()
+            ->write('}' . "\n")
             ->write('echo \'<div data-wink-experiment="\' . htmlspecialchars(' . var_export($this->experimentHandle, true) . ') . \'" data-wink-variant="\' . htmlspecialchars($_winkVariant->handle) . \'">\';' . "\n");
 
         // Generate if/elseif chain for each variant handle

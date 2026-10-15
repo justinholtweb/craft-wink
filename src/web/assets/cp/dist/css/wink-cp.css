@@ -64,3 +64,14 @@ tr.wink-winner {
     font-weight: 500;
     vertical-align: middle;
 }
+
+/* Control / primary radio, aligned with the inputs beside it */
+.wink-row-choice {
+    padding-bottom: 8px;
+    white-space: nowrap;
+}
+
+[data-wink-weight-total].error {
+    color: var(--error-color, #cf1124);
+    font-weight: 600;
+}

@@ -176,15 +176,24 @@ class ExperimentService extends Component
             ->select('id')
             ->column();
 
-        $keepIds = [];
+        $keepIds = array_values(array_intersect(
+            array_filter(array_map(fn(Variant $variant) => $variant->id, $variants)),
+            $existingIds,
+        ));
+
+        // Delete removed variants first, so a new row may take a removed row's handle without
+        // tripping the (experimentId, handle) unique index.
+        $removeIds = array_diff($existingIds, $keepIds);
+        if (!empty($removeIds)) {
+            VariantRecord::deleteAll(['id' => $removeIds]);
+        }
 
         foreach ($variants as $i => $variant) {
             $variant->experimentId = $experimentId;
             $variant->sortOrder = $i;
 
-            if ($variant->id && in_array($variant->id, $existingIds)) {
+            if ($variant->id && in_array($variant->id, $keepIds)) {
                 $record = VariantRecord::findOne($variant->id);
-                $keepIds[] = $variant->id;
             } else {
                 $record = new VariantRecord();
                 $record->experimentId = $experimentId;
@@ -202,12 +211,6 @@ class ExperimentService extends Component
             }
 
             $variant->id = $record->id;
-        }
-
-        // Delete removed variants
-        $removeIds = array_diff($existingIds, $keepIds);
-        if (!empty($removeIds)) {
-            VariantRecord::deleteAll(['id' => $removeIds]);
         }
 
         return true;
@@ -290,14 +293,22 @@ class ExperimentService extends Component
             ->select('id')
             ->column();
 
-        $keepIds = [];
+        $keepIds = array_values(array_intersect(
+            array_filter(array_map(fn(Goal $goal) => $goal->id, $goals)),
+            $existingIds,
+        ));
+
+        // Removed goals go first, for the same reason as in saveVariants().
+        $removeIds = array_diff($existingIds, $keepIds);
+        if (!empty($removeIds)) {
+            GoalRecord::deleteAll(['id' => $removeIds]);
+        }
 
         foreach ($goals as $goal) {
             $goal->experimentId = $experimentId;
 
-            if ($goal->id && in_array($goal->id, $existingIds)) {
+            if ($goal->id && in_array($goal->id, $keepIds)) {
                 $record = GoalRecord::findOne($goal->id);
-                $keepIds[] = $goal->id;
             } else {
                 $record = new GoalRecord();
                 $record->experimentId = $experimentId;
@@ -316,12 +327,106 @@ class ExperimentService extends Component
             $goal->id = $record->id;
         }
 
-        // Delete removed goals
-        $removeIds = array_diff($existingIds, $keepIds);
-        if (!empty($removeIds)) {
-            GoalRecord::deleteAll(['id' => $removeIds]);
+        return true;
+    }
+
+    /**
+     * Running experiments that have a goal with this handle. A conversion sent without an
+     * experiment (from a thank-you page, say) counts toward each of them.
+     *
+     * @return Experiment[]
+     */
+    public function getRunningExperimentsWithGoal(string $goalHandle): array
+    {
+        $ids = GoalRecord::find()
+            ->select('experimentId')
+            ->where(['handle' => $goalHandle])
+            ->column();
+
+        if (empty($ids)) {
+            return [];
         }
 
-        return true;
+        return Experiment::find()
+            ->id($ids)
+            ->experimentStatus(ExperimentStatus::Running)
+            ->all();
+    }
+
+    /**
+     * Check variants as the control panel posts them, before anything is saved: at least two, unique
+     * handles, weights adding up to 100, one control. Errors on one row go on its model; errors
+     * about the set go on the experiment under `variants`. Run it after the experiment's own
+     * validate(), which clears them.
+     *
+     * @param Variant[] $variants
+     */
+    public function validateVariants(Experiment $experiment, array $variants): bool
+    {
+        $valid = true;
+
+        if (count($variants) < 2) {
+            $experiment->addError('variants', Craft::t('wink', 'An experiment needs at least two variants.'));
+            $valid = false;
+        }
+
+        $handles = [];
+        foreach ($variants as $variant) {
+            $variant->validate(['handle', 'title', 'weight']);
+            if ($variant->handle !== '' && in_array($variant->handle, $handles, true)) {
+                $variant->addError('handle', Craft::t('wink', 'Each variant needs its own handle.'));
+            }
+            $handles[] = $variant->handle;
+            $valid = $valid && !$variant->hasErrors();
+        }
+
+        $totalWeight = array_sum(array_map(fn(Variant $variant) => $variant->weight, $variants));
+        if ($variants && $totalWeight !== 100) {
+            $experiment->addError('variants', Craft::t('wink', 'Variant weights must add up to 100 (they add up to {total}).', [
+                'total' => $totalWeight,
+            ]));
+            $valid = false;
+        }
+
+        $controls = count(array_filter($variants, fn(Variant $variant) => $variant->isControl));
+        if ($variants && $controls !== 1) {
+            $experiment->addError('variants', Craft::t('wink', 'Choose one variant as the control.'));
+            $valid = false;
+        }
+
+        return $valid;
+    }
+
+    /**
+     * Check goals as the control panel posts them: at least one, unique handles, and a target for
+     * every goal the tracker detects itself. Set errors go on the experiment under `goals`.
+     *
+     * @param Goal[] $goals
+     */
+    public function validateGoals(Experiment $experiment, array $goals): bool
+    {
+        $valid = true;
+
+        if (count($goals) < 1) {
+            $experiment->addError('goals', Craft::t('wink', 'An experiment needs at least one goal.'));
+            $valid = false;
+        }
+
+        $handles = [];
+        foreach ($goals as $goal) {
+            $goal->validate(['name', 'handle', 'goalTarget']);
+            if ($goal->handle !== '' && in_array($goal->handle, $handles, true)) {
+                $goal->addError('handle', Craft::t('wink', 'Each goal needs its own handle.'));
+            }
+            if ($goal->goalType !== GoalType::CustomEvent && trim((string)$goal->goalTarget) === '') {
+                $goal->addError('goalTarget', Craft::t('wink', '{type} goals need a target.', [
+                    'type' => Craft::t('wink', $goal->goalType->label()),
+                ]));
+            }
+            $handles[] = $goal->handle;
+            $valid = $valid && !$goal->hasErrors();
+        }
+
+        return $valid;
     }
 }

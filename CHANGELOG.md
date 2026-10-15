@@ -1,5 +1,40 @@
 # Release Notes for Wink
 
+## 5.2.0 - 2026-10-15
+
+### Added
+- A *Require Consent* setting (`requireConsent`). With it on, Wink sets no cookie and records
+  nothing for a visitor until they consent with `Wink.consent()` (or a `wink:consent` event, or the
+  `_wink_consent` cookie); until then they see each experiment's control. `Wink.revokeConsent()`
+  withdraws it. ([#6](https://github.com/justinholtweb/craft-wink/issues/6))
+- The experiment edit screen can add and remove variants and goals, shows the running weight total,
+  and chooses the control and the primary goal with a radio.
+  ([#5](https://github.com/justinholtweb/craft-wink/issues/5))
+
+### Changed
+- Saving an experiment checks its variants and goals first: at least two variants, weights adding up
+  to 100, one control, at least one goal, unique handles, and a target for page view, click and form
+  submit goals. Nothing is saved unless everything is valid, and the form comes back with the errors.
+- `Wink.convert()` sends the goal alone, and the server counts it for every running experiment with
+  that goal the visitor has seen, so it works on pages without the experiment.
+- Click goals are detected on elements added after the page loaded, and GA4/GTM events are forwarded
+  as they happen rather than when the batch is sent.
+- Chart.js 4.5.1 is bundled with the plugin instead of loaded from a CDN.
+
+### Fixed
+- Start, Pause, Complete and Archive failed with a 400, so an experiment couldn't be started from
+  the control panel. ([#1](https://github.com/justinholtweb/craft-wink/issues/1))
+- Page View and Form Submit goals never recorded a conversion; only Click goals were detected.
+  ([#2](https://github.com/justinholtweb/craft-wink/issues/2))
+- Conversions sent from a page without the experiment block were dropped.
+  ([#3](https://github.com/justinholtweb/craft-wink/issues/3))
+- The report's "Conversion Rate Over Time" chart never loaded.
+  ([#4](https://github.com/justinholtweb/craft-wink/issues/4))
+- The experiment edit screen had no way to add a third variant or a second goal.
+  ([#5](https://github.com/justinholtweb/craft-wink/issues/5))
+- The control panel script and styles weren't loaded, so the handle wasn't generated from the title.
+- Re-adding a removed variant or goal handle in one save failed on the unique index.
+
 ## 5.1.0 - 2026-10-08
 
 > {warning} **Wink now has cache-safe delivery, and turns it on for you behind Blitz.** The new

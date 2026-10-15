@@ -25,7 +25,7 @@ php craft plugin/install wink
 - **Twig integration** — functions, block tags, and template variables
 - **Frontend tracker** — lightweight JS (~3KB gzipped) with event batching
 - **GA4/GTM forwarding** — optional integration with Google Analytics and Tag Manager
-- **Privacy-first** — respects Do Not Track, IP anonymization, configurable retention
+- **Privacy-first** — optional consent gate, respects Do Not Track, IP anonymization, configurable retention
 
 ## Usage
 
@@ -63,16 +63,43 @@ php craft plugin/install wink
 {% set variant = craft.wink.variant('headline-test') %}
 ```
 
-### JavaScript Conversions
+### Conversion goals
+
+With `{{ winkTrackingScript() }}` on the page, the tracker detects these goals itself, on any page
+of the site:
+
+| Goal type | Target | Converts when |
+| --- | --- | --- |
+| Page View | A URL path; `*` matches anything (`/thank-you*`). A pattern with `?` also matches the query string; one with `://` matches the whole URL. | The visitor loads a matching page. |
+| Click | A CSS selector (`.cta-button`) | The visitor clicks a matching element, or anything inside one. |
+| Form Submit | A CSS selector (`#signup-form`) | The visitor submits a matching form. |
+| Custom Event | — | Your script calls `Wink.convert()`. |
+
+Any goal can also be sent from your own script:
 
 ```javascript
-// Record a conversion
 Wink.convert('signup-goal', { plan: 'pro' });
 ```
 
-A conversion counts only for a goal the experiment has, and only from a visitor who has had an
-impression of it. Repeat conversions are recorded, but rates and significance count each converted
-visitor once.
+The page needn't have the experiment on it: a conversion from the thank-you page counts for every
+running experiment with that goal handle. A conversion counts only from a visitor who has had an
+impression of the experiment. Repeat conversions are recorded, but rates and significance count each
+converted visitor once.
+
+## Consent
+
+Turn on **Require Consent** (`requireConsent`) and Wink sets no cookie and records nothing for a
+visitor until they consent. Until then they see each experiment's control. From your consent
+banner:
+
+```javascript
+Wink.consent();          // or: window.dispatchEvent(new Event('wink:consent'))
+Wink.revokeConsent();    // deletes Wink's cookies and stops tracking
+```
+
+Consent is the `_wink_consent` cookie set to `1`, so a consent manager can also set that cookie
+itself. It takes effect from the next page the visitor loads; the page they consented on keeps
+showing the control.
 
 ## Delivery: server-side or cache-safe
 

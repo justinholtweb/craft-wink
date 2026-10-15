@@ -44,6 +44,7 @@ class SettingsController extends Controller
         $settings->anonymizeIp = (bool)$request->getBodyParam('anonymizeIp');
         $settings->cookieName = $request->getBodyParam('cookieName', '_wink_vid');
         $settings->cookieDuration = (int)$request->getBodyParam('cookieDuration', 365);
+        $settings->requireConsent = (bool)$request->getBodyParam('requireConsent');
         $settings->deliveryMode = (string)$request->getBodyParam('deliveryMode', $settings->deliveryMode);
 
         $settings->enableGa4 = (bool)$request->getBodyParam('enableGa4');

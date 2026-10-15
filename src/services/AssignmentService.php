@@ -22,6 +22,13 @@ class AssignmentService extends Component
     public const VISITOR_ID_PATTERN = '/^[A-Za-z0-9\-]{8,64}$/';
 
     /**
+     * With `requireConsent` on, Wink sets no cookie and records nothing until this cookie is `1`.
+     * `Wink.consent()` sets it in the browser (a consent banner calls that, or dispatches a
+     * `wink:consent` event); a site can also set it itself.
+     */
+    public const CONSENT_COOKIE = '_wink_consent';
+
+    /**
      * Get or create a visitor ID from cookies.
      *
      * The result is memoized for the request: a newly generated ID only exists
@@ -68,6 +75,39 @@ class AssignmentService extends Component
         return $this->_visitorId = $visitorId;
     }
 
+    /**
+     * Whether Wink may identify this visitor: always, unless `requireConsent` is on, and then only
+     * once the consent cookie is set. Without it a visitor sees the control and nothing is recorded
+     * or stored.
+     */
+    public function hasConsent(): bool
+    {
+        if (!Plugin::getInstance()->getSettings()->requireConsent) {
+            return true;
+        }
+
+        $request = Craft::$app->getRequest();
+
+        return $request instanceof \craft\web\Request
+            && !$request->getIsConsoleRequest()
+            && $request->getRawCookies()->getValue(self::CONSENT_COOKIE) === '1';
+    }
+
+    /**
+     * The variant shown to a visitor who isn't in the experiment: the control, else the first.
+     */
+    public function getFallbackVariant(Experiment $experiment): ?Variant
+    {
+        $variants = $experiment->getVariants();
+        foreach ($variants as $variant) {
+            if ($variant->isControl) {
+                return $variant;
+            }
+        }
+
+        return $variants[0] ?? null;
+    }
+
     public static function isValidVisitorId(string $visitorId): bool
     {
         return (bool)preg_match(self::VISITOR_ID_PATTERN, $visitorId);
@@ -93,15 +133,9 @@ class AssignmentService extends Component
             return null;
         }
 
-        // Check enrollment
+        // Not enrolled: the control
         if (!$this->isEnrolled($visitorId, $experiment)) {
-            // Not enrolled - return control variant
-            foreach ($variants as $variant) {
-                if ($variant->isControl) {
-                    return $variant;
-                }
-            }
-            return $variants[0];
+            return $this->getFallbackVariant($experiment);
         }
 
         // Deterministic assignment based on weights
@@ -126,13 +160,18 @@ class AssignmentService extends Component
 
     /**
      * Get assignment for an experiment by handle (convenience method).
-     * Returns the assigned variant or null if experiment not found/not running.
+     * Returns the assigned variant or null if experiment not found/not running; the control for a
+     * visitor who hasn't consented (see hasConsent()).
      */
     public function getAssignment(string $experimentHandle): ?Variant
     {
         $experiment = Plugin::getInstance()->experiments->getRunningExperiment($experimentHandle);
         if (!$experiment) {
             return null;
+        }
+
+        if (!$this->hasConsent()) {
+            return $this->getFallbackVariant($experiment);
         }
 
         $visitorId = $this->getVisitorId();

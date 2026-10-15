@@ -155,6 +155,7 @@
         var handle = null;
         var options;
         var shown = false;
+        var consented = true;
         var i;
 
         if (!el || !el.getAttribute || el.getAttribute('data-wink-variant') !== null) {
@@ -163,8 +164,14 @@
 
         try {
             cfg = JSON.parse(el.getAttribute('data-wink-config'));
-            id = visitorId(cfg);
-            handle = assign(id, cfg);
+            // Consent required and not given: the control, no visitor ID, no cookie, no impression.
+            consented = !cfg.consent || readCookie(cfg.consent) === '1';
+            if (consented) {
+                id = visitorId(cfg);
+                handle = assign(id, cfg);
+            } else {
+                handle = cfg.variants && cfg.variants.length ? controlOf(cfg.variants) : null;
+            }
         } catch (e) {
             handle = null;
         }
@@ -190,7 +197,7 @@
             el.setAttribute('data-wink-vid', id);
         }
 
-        if (handle !== null && cfg && cfg.track) {
+        if (handle !== null && consented && cfg && cfg.track) {
             pending.push({
                 track: cfg.track,
                 event: {

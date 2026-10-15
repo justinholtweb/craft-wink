@@ -54,6 +54,14 @@
         size: 10,
     }) }}
 
+    {{ forms.lightswitchField({
+        label: 'Require Consent'|t('wink'),
+        id: 'requireConsent',
+        name: 'requireConsent',
+        on: settings.requireConsent,
+        instructions: 'Set no cookie and record nothing until the visitor consents. Until then they see each experiment’s control. Have your consent banner call `Wink.consent()` (or dispatch a `wink:consent` event on `window`), and `Wink.revokeConsent()` to withdraw it; consent takes effect from the next page.'|t('wink'),
+    }) }}
+
     <hr>
     <h2>{{ 'Delivery'|t('wink') }}</h2>
 

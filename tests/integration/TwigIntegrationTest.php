@@ -3,7 +3,9 @@
 namespace justinholtweb\wink\tests\integration;
 
 use Craft;
+use justinholtweb\wink\enums\GoalType;
 use justinholtweb\wink\Plugin;
+use justinholtweb\wink\services\AssignmentService;
 
 /**
  * Renders templates through Craft's view so the {% experiment %} tag and the
@@ -207,18 +209,50 @@ final class TwigIntegrationTest extends WinkTestCase
         $this->assertSame('', trim($this->render('{{ winkTrackingScript() }}')));
     }
 
-    public function testTrackingScriptIncludesActiveClickGoals(): void
+    /**
+     * Regression (#2): only click goals reached the tracker, so page view and form submit goals
+     * never converted. Every goal the tracker can detect goes in; custom events don't.
+     */
+    public function testTrackingScriptIncludesEveryDetectableGoal(): void
     {
-        $experiment = $this->createExperiment(['handle' => 'click-goals', 'experimentStatus' => 'running']);
+        $experiment = $this->createExperiment(['handle' => 'auto-goals', 'experimentStatus' => 'running']);
         $this->addGoals($experiment, [
-            ['handle' => 'cta', 'goalType' => \justinholtweb\wink\enums\GoalType::Click, 'goalTarget' => '.cta-button'],
-            ['handle' => 'view', 'goalType' => \justinholtweb\wink\enums\GoalType::Pageview, 'goalTarget' => '/thanks'],
+            ['handle' => 'cta', 'goalType' => GoalType::Click, 'goalTarget' => '.cta-button'],
+            ['handle' => 'view', 'goalType' => GoalType::Pageview, 'goalTarget' => '/thanks*'],
+            ['handle' => 'signup', 'goalType' => GoalType::FormSubmit, 'goalTarget' => '#signup'],
+            ['handle' => 'custom', 'goalType' => GoalType::CustomEvent, 'goalTarget' => 'purchase'],
         ]);
+        $draft = $this->createExperiment(['handle' => 'draft-goals']);
+        $this->addGoals($draft, [['handle' => 'draft-view', 'goalType' => GoalType::Pageview, 'goalTarget' => '/draft']]);
 
+        $config = $this->trackerConfig();
+        $goals = array_column($config['goals'], null, 'handle');
+
+        $this->assertSame(['cta', 'view', 'signup'], array_keys($goals));
+        $this->assertSame(['type' => 'pageview', 'handle' => 'view', 'target' => '/thanks*', 'experiment' => 'auto-goals'], $goals['view']);
+        $this->assertSame('form_submit', $goals['signup']['type']);
+        $this->assertSame('#signup', $goals['signup']['target']);
+    }
+
+    public function testTrackingScriptCarriesTheConsentSettings(): void
+    {
+        $this->assertFalse($this->trackerConfig()['requireConsent']);
+
+        $this->withSettings(['requireConsent' => true, 'cookieName' => '_my_vid']);
+        $config = $this->trackerConfig();
+
+        $this->assertTrue($config['requireConsent']);
+        $this->assertSame(AssignmentService::CONSENT_COOKIE, $config['cookies']['consent']);
+        $this->assertSame('_my_vid', $config['cookies']['visitor']);
+    }
+
+    private function trackerConfig(): array
+    {
         $output = $this->render('{{ winkTrackingScript() }}');
+        $this->assertMatchesRegularExpression('~^<script>window\._winkConfig = (.*);</script>$~s', trim($output));
+        preg_match('~window\._winkConfig = (.*);</script>~s', $output, $m);
 
-        $this->assertStringContainsString('.cta-button', $output);
-        $this->assertStringNotContainsString('/thanks', $output, 'Only click goals belong in the click list');
+        return json_decode($m[1], true, flags: JSON_THROW_ON_ERROR);
     }
 
     public function testAClickGoalSelectorCannotCloseTheScriptTag(): void
@@ -233,6 +267,74 @@ final class TwigIntegrationTest extends WinkTestCase
         // One closing tag — the script's own.
         $this->assertSame(1, substr_count(strtolower($output), '</script'));
         $this->assertStringNotContainsString('<script>alert', $output);
+    }
+
+    // ---- consent (#6) -------------------------------------------------------
+
+    public function testWithoutConsentTheTagShowsTheControlAndRecordsNothing(): void
+    {
+        $experiment = $this->runningExperiment();
+        $this->withSettings(['requireConsent' => true]);
+        $this->setClientIp('203.0.113.7');
+
+        $html = $this->render(<<<'TWIG'
+            {% experiment 'twig-test' %}
+              {% variant 'control' %}Welcome{% endvariant %}
+              {% variant 'challenger' %}Discover{% endvariant %}
+            {% endexperiment %}
+            {{ winkVariant('twig-test') }}|{{ craft.wink.variant('twig-test') }}|{{ winkExperiment('twig-test').variantHandle }}
+            TWIG);
+
+        $this->assertStringContainsString('data-wink-variant="control"', $html);
+        $this->assertStringNotContainsString('Discover', $html);
+        $this->assertStringContainsString('Welcome|control|control', $html);
+        $this->assertSame(0, Plugin::getInstance()->tracking->getImpressionCount($experiment->id));
+        $this->assertFalse(
+            Craft::$app->getResponse()->getRawCookies()->has(Plugin::getInstance()->getSettings()->cookieName),
+            'No visitor cookie may be set before consent',
+        );
+    }
+
+    public function testWithConsentTheTagAssignsAndRecords(): void
+    {
+        $experiment = $this->runningExperiment();
+        $this->withSettings(['requireConsent' => true]);
+        $this->setClientIp('203.0.113.7');
+        $this->setRawRequestCookies([AssignmentService::CONSENT_COOKIE => '1']);
+        Craft::$app->getRequest()->setUrl('/landing'); // a web request records the page URL
+
+        $this->assertTrue(Plugin::getInstance()->assignment->hasConsent());
+
+        $this->render(<<<'TWIG'
+            {% experiment 'twig-test' %}
+              {% variant 'control' %}A{% endvariant %}
+              {% variant 'challenger' %}B{% endvariant %}
+            {% endexperiment %}
+            TWIG);
+
+        $this->assertSame(1, Plugin::getInstance()->tracking->getImpressionCount($experiment->id));
+    }
+
+    public function testConsentIsOnlyAskedForWhenTheSettingIsOn(): void
+    {
+        $this->setClientIp('203.0.113.7');
+        $this->assertTrue(Plugin::getInstance()->assignment->hasConsent());
+
+        $this->withSettings(['requireConsent' => true]);
+        $this->assertFalse(Plugin::getInstance()->assignment->hasConsent());
+
+        $this->setRawRequestCookies([AssignmentService::CONSENT_COOKIE => '0']);
+        $this->assertFalse(Plugin::getInstance()->assignment->hasConsent());
+    }
+
+    public function testCacheSafeConfigNamesTheConsentCookieOnlyWhenRequired(): void
+    {
+        $experiment = $this->runningExperiment();
+
+        $this->assertFalse(Plugin::getInstance()->delivery->getClientConfig($experiment)['consent']);
+
+        $this->withSettings(['requireConsent' => true]);
+        $this->assertSame(AssignmentService::CONSENT_COOKIE, Plugin::getInstance()->delivery->getClientConfig($experiment)['consent']);
     }
 
     // ---- craft.wink variable ------------------------------------------------

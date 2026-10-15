@@ -84,136 +84,40 @@
         <hr>
         <h2>{{ 'Variants'|t('wink') }}</h2>
         <p class="light">{{ 'Define the content variants for this experiment. Weights must add up to 100.'|t('wink') }}</p>
+        {{ forms.errorList(experiment.getErrors('variants')) }}
 
-        <div id="wink-variants">
-            {% set variants = experiment.getVariants() %}
-            {% if not variants|length %}
-                {% set variants = [
-                    {id: '', handle: 'control', title: 'Control', content: '', weight: 50, isControl: true, sortOrder: 0},
-                    {id: '', handle: 'variant-a', title: 'Variant A', content: '', weight: 50, isControl: false, sortOrder: 1},
-                ] %}
-            {% endif %}
-
-            {% for variant in variants %}
-                <div class="wink-variant-row matrixblock" style="padding: 14px; margin-bottom: 10px;">
-                    {{ hiddenInput('variants[' ~ loop.index0 ~ '][id]', variant.id ?? '') }}
-
-                    <div class="flex">
-                        <div class="flex-grow">
-                            {{ forms.textField({
-                                label: 'Title'|t('app'),
-                                name: 'variants[' ~ loop.index0 ~ '][title]',
-                                value: variant.title ?? '',
-                                required: true,
-                                size: 30,
-                            }) }}
-                        </div>
-                        <div>
-                            {{ forms.textField({
-                                label: 'Handle'|t('wink'),
-                                name: 'variants[' ~ loop.index0 ~ '][handle]',
-                                value: variant.handle ?? '',
-                                required: true,
-                                size: 20,
-                            }) }}
-                        </div>
-                        <div>
-                            {{ forms.textField({
-                                label: 'Weight'|t('wink'),
-                                name: 'variants[' ~ loop.index0 ~ '][weight]',
-                                value: variant.weight ?? 50,
-                                type: 'number',
-                                min: 0,
-                                max: 100,
-                                size: 5,
-                            }) }}
-                        </div>
-                        <div>
-                            {{ forms.checkboxField({
-                                label: 'Control'|t('wink'),
-                                name: 'variants[' ~ loop.index0 ~ '][isControl]',
-                                checked: variant.isControl ?? false,
-                                value: 1,
-                            }) }}
-                        </div>
-                    </div>
-
-                    {{ forms.textareaField({
-                        label: 'Content'|t('wink'),
-                        name: 'variants[' ~ loop.index0 ~ '][content]',
-                        value: variant.content ?? '',
-                        rows: 4,
-                        instructions: 'HTML or text content for this variant.'|t('wink'),
-                    }) }}
-                </div>
+        <div id="wink-variants" data-wink-rows="variant" data-wink-min="2" data-wink-confirm-remove="{{ 'Removing a saved variant also deletes the impressions and conversions recorded for it. Remove it?'|t('wink') }}">
+            {% for variant in experiment.getVariants() %}
+                {{ _self.variantRow('v' ~ loop.index0, variant) }}
             {% endfor %}
         </div>
+        <div class="flex">
+            <button type="button" class="btn add icon dashed" data-wink-add="variant">{{ 'Add a variant'|t('wink') }}</button>
+            <div class="light" data-wink-weight-total data-label="{{ 'Total weight: {total}'|t('wink') }}" aria-live="polite"></div>
+        </div>
+        <template id="wink-variant-template">
+            {{ _self.variantRow('__ROW__', create({class: 'justinholtweb\\wink\\models\\Variant', weight: 0})) }}
+        </template>
 
         {# Goals #}
         <hr>
         <h2>{{ 'Conversion Goals'|t('wink') }}</h2>
         <p class="light">{{ 'Define what counts as a conversion for this experiment.'|t('wink') }}</p>
+        {{ forms.errorList(experiment.getErrors('goals')) }}
 
-        <div id="wink-goals">
-            {% set goals = experiment.getGoals() %}
-            {% if not goals|length %}
-                {% set goals = [
-                    {id: '', name: 'Primary Goal', handle: 'primary-goal', goalType: 'pageview', goalTarget: '', isPrimary: true},
-                ] %}
-            {% endif %}
-
-            {% for goal in goals %}
-                <div class="wink-goal-row matrixblock" style="padding: 14px; margin-bottom: 10px;">
-                    {{ hiddenInput('goals[' ~ loop.index0 ~ '][id]', goal.id ?? '') }}
-
-                    <div class="flex">
-                        <div class="flex-grow">
-                            {{ forms.textField({
-                                label: 'Name'|t('app'),
-                                name: 'goals[' ~ loop.index0 ~ '][name]',
-                                value: goal.name ?? '',
-                                required: true,
-                            }) }}
-                        </div>
-                        <div>
-                            {{ forms.textField({
-                                label: 'Handle'|t('wink'),
-                                name: 'goals[' ~ loop.index0 ~ '][handle]',
-                                value: goal.handle ?? '',
-                                required: true,
-                            }) }}
-                        </div>
-                    </div>
-
-                    <div class="flex">
-                        <div>
-                            {{ forms.selectField({
-                                label: 'Goal Type'|t('wink'),
-                                name: 'goals[' ~ loop.index0 ~ '][goalType]',
-                                value: goal.goalType.value ?? goal.goalType ?? 'pageview',
-                                options: goalTypes|map(g => {label: g.label(), value: g.value}),
-                            }) }}
-                        </div>
-                        <div class="flex-grow">
-                            {{ forms.textField({
-                                label: 'Target'|t('wink'),
-                                name: 'goals[' ~ loop.index0 ~ '][goalTarget]',
-                                value: goal.goalTarget ?? '',
-                                instructions: 'URL pattern, CSS selector, or event name depending on goal type.'|t('wink'),
-                            }) }}
-                        </div>
-                        <div>
-                            {{ forms.checkboxField({
-                                label: 'Primary'|t('wink'),
-                                name: 'goals[' ~ loop.index0 ~ '][isPrimary]',
-                                checked: goal.isPrimary ?? false,
-                                value: 1,
-                            }) }}
-                        </div>
-                    </div>
-                </div>
+        {% set targetPlaceholders = {} %}
+        {% for goalType in goalTypes %}
+            {% set targetPlaceholders = targetPlaceholders|merge({(goalType.value): goalType.targetPlaceholder()}) %}
+        {% endfor %}
+        <div id="wink-goals" data-wink-rows="goal" data-wink-min="1" data-wink-placeholders="{{ targetPlaceholders|json_encode }}" data-wink-confirm-remove="{{ 'Removing a saved goal also detaches the conversions recorded for it. Remove it?'|t('wink') }}">
+            {% for goal in experiment.getGoals() %}
+                {{ _self.goalRow('g' ~ loop.index0, goal, goalTypes) }}
             {% endfor %}
         </div>
+        <button type="button" class="btn add icon dashed" data-wink-add="goal">{{ 'Add a goal'|t('wink') }}</button>
+        <template id="wink-goal-template">
+            {{ _self.goalRow('__ROW__', create('justinholtweb\\wink\\models\\Goal'), goalTypes) }}
+        </template>
     </div>
 {% endblock %}
 
@@ -232,25 +136,25 @@
 
             {% if statusEnum.canTransitionTo(constant('justinholtweb\\wink\\enums\\ExperimentStatus::Running')) %}
                 <div class="data">
-                    <button class="btn submit small wink-status-btn" data-action="start">{{ 'Start'|t('wink') }}</button>
+                    <button type="button" class="btn submit small wink-status-btn" data-transition="start" data-confirm="{{ 'Are you sure you want to start this experiment?'|t('wink') }}">{{ 'Start'|t('wink') }}</button>
                 </div>
             {% endif %}
 
             {% if statusEnum.canTransitionTo(constant('justinholtweb\\wink\\enums\\ExperimentStatus::Paused')) %}
                 <div class="data">
-                    <button class="btn small wink-status-btn" data-action="pause">{{ 'Pause'|t('wink') }}</button>
+                    <button type="button" class="btn small wink-status-btn" data-transition="pause" data-confirm="{{ 'Are you sure you want to pause this experiment?'|t('wink') }}">{{ 'Pause'|t('wink') }}</button>
                 </div>
             {% endif %}
 
             {% if statusEnum.canTransitionTo(constant('justinholtweb\\wink\\enums\\ExperimentStatus::Completed')) %}
                 <div class="data">
-                    <button class="btn small wink-status-btn" data-action="complete">{{ 'Complete'|t('wink') }}</button>
+                    <button type="button" class="btn small wink-status-btn" data-transition="complete" data-confirm="{{ 'Are you sure you want to complete this experiment?'|t('wink') }}">{{ 'Complete'|t('wink') }}</button>
                 </div>
             {% endif %}
 
             {% if statusEnum.canTransitionTo(constant('justinholtweb\\wink\\enums\\ExperimentStatus::Archived')) %}
                 <div class="data">
-                    <button class="btn small wink-status-btn" data-action="archive">{{ 'Archive'|t('wink') }}</button>
+                    <button type="button" class="btn small wink-status-btn" data-transition="archive" data-confirm="{{ 'Are you sure you want to archive this experiment?'|t('wink') }}">{{ 'Archive'|t('wink') }}</button>
                 </div>
             {% endif %}
 
@@ -282,23 +186,157 @@
     </div>
 {% endblock %}
 
+{% do view.registerAssetBundle('justinholtweb\\wink\\web\\assets\\cp\\CpAsset') %}
 {% js %}
 document.querySelectorAll('.wink-status-btn').forEach(function(btn) {
     btn.addEventListener('click', function(e) {
         e.preventDefault();
-        var action = this.dataset.action;
-        if (confirm('Are you sure you want to ' + action + ' this experiment?')) {
+        if (confirm(this.dataset.confirm)) {
+            // `transition`, not `action`: sendActionRequest() strips `action` from the data.
             Craft.sendActionRequest('POST', 'wink/experiments/update-status', {
                 data: {
                     id: {{ experiment.id ?? 'null' }},
-                    action: action,
+                    transition: this.dataset.transition,
                 }
             }).then(function() {
                 location.reload();
             }).catch(function(error) {
-                Craft.cp.displayError(error?.response?.data?.message || 'Could not update status.');
+                Craft.cp.displayError(error?.response?.data?.message || {{ 'Could not update experiment status.'|t('wink')|json_encode|raw }});
             });
         }
     });
 });
 {% endjs %}
+
+{% macro variantRow(key, variant) %}
+    {% import '_includes/forms.twig' as forms %}
+    {% set prefix = 'variants[' ~ key ~ ']' %}
+    <div class="wink-variant-row" data-wink-row data-saved="{{ variant.id ? 1 : 0 }}">
+        {{ hiddenInput(prefix ~ '[id]', variant.id ?? '') }}
+
+        <div class="flex">
+            <div class="flex-grow">
+                {{ forms.textField({
+                    label: 'Title'|t('app'),
+                    id: 'wink-variant-' ~ key ~ '-title',
+                    name: prefix ~ '[title]',
+                    value: variant.title,
+                    required: true,
+                    size: 30,
+                    errors: variant.getErrors('title'),
+                }) }}
+            </div>
+            <div>
+                {{ forms.textField({
+                    label: 'Handle'|t('wink'),
+                    id: 'wink-variant-' ~ key ~ '-handle',
+                    name: prefix ~ '[handle]',
+                    value: variant.handle,
+                    required: true,
+                    size: 20,
+                    errors: variant.getErrors('handle'),
+                }) }}
+            </div>
+            <div>
+                {{ forms.textField({
+                    label: 'Weight'|t('wink'),
+                    id: 'wink-variant-' ~ key ~ '-weight',
+                    name: prefix ~ '[weight]',
+                    value: variant.weight,
+                    type: 'number',
+                    min: 0,
+                    max: 100,
+                    size: 5,
+                    errors: variant.getErrors('weight'),
+                }) }}
+            </div>
+            <div class="wink-row-choice">
+                {{ forms.radio({
+                    id: 'wink-variant-' ~ key ~ '-control',
+                    name: 'controlVariant',
+                    value: key,
+                    checked: variant.isControl,
+                    label: 'Control'|t('wink'),
+                }) }}
+            </div>
+            <div>
+                <button type="button" class="btn small" data-wink-remove>{{ 'Remove'|t('app') }}</button>
+            </div>
+        </div>
+
+        {{ forms.textareaField({
+            label: 'Content'|t('wink'),
+            id: 'wink-variant-' ~ key ~ '-content',
+            name: prefix ~ '[content]',
+            value: variant.content,
+            rows: 4,
+            instructions: 'HTML or text content for this variant.'|t('wink'),
+        }) }}
+    </div>
+{% endmacro %}
+
+{% macro goalRow(key, goal, goalTypes) %}
+    {% import '_includes/forms.twig' as forms %}
+    {% set prefix = 'goals[' ~ key ~ ']' %}
+    <div class="wink-goal-row" data-wink-row data-saved="{{ goal.id ? 1 : 0 }}">
+        {{ hiddenInput(prefix ~ '[id]', goal.id ?? '') }}
+
+        <div class="flex">
+            <div class="flex-grow">
+                {{ forms.textField({
+                    label: 'Name'|t('app'),
+                    id: 'wink-goal-' ~ key ~ '-name',
+                    name: prefix ~ '[name]',
+                    value: goal.name,
+                    required: true,
+                    errors: goal.getErrors('name'),
+                }) }}
+            </div>
+            <div>
+                {{ forms.textField({
+                    label: 'Handle'|t('wink'),
+                    id: 'wink-goal-' ~ key ~ '-handle',
+                    name: prefix ~ '[handle]',
+                    value: goal.handle,
+                    required: true,
+                    errors: goal.getErrors('handle'),
+                }) }}
+            </div>
+            <div class="wink-row-choice">
+                {{ forms.radio({
+                    id: 'wink-goal-' ~ key ~ '-primary',
+                    name: 'primaryGoal',
+                    value: key,
+                    checked: goal.isPrimary,
+                    label: 'Primary'|t('wink'),
+                }) }}
+            </div>
+            <div>
+                <button type="button" class="btn small" data-wink-remove>{{ 'Remove'|t('app') }}</button>
+            </div>
+        </div>
+
+        <div class="flex">
+            <div>
+                {{ forms.selectField({
+                    label: 'Goal Type'|t('wink'),
+                    id: 'wink-goal-' ~ key ~ '-type',
+                    name: prefix ~ '[goalType]',
+                    value: goal.goalType.value,
+                    options: goalTypes|map(g => {label: g.label()|t('wink'), value: g.value}),
+                }) }}
+            </div>
+            <div class="flex-grow">
+                {{ forms.textField({
+                    label: 'Target'|t('wink'),
+                    id: 'wink-goal-' ~ key ~ '-target',
+                    name: prefix ~ '[goalTarget]',
+                    value: goal.goalTarget,
+                    placeholder: goal.goalType.targetPlaceholder(),
+                    instructions: 'Page View: a URL path, where `*` matches anything (`/thank-you*`). Click and Form Submit: a CSS selector. Custom Event: none needed; send the conversion from your own script with `Wink.convert(\'handle\')`.'|t('wink'),
+                    errors: goal.getErrors('goalTarget'),
+                }) }}
+            </div>
+        </div>
+    </div>
+{% endmacro %}

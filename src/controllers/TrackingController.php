@@ -38,6 +38,11 @@ class TrackingController extends Controller
             return $this->asJson(['status' => 'dnt']);
         }
 
+        // Without consent (when it's required) the visitor gets no cookie and no events.
+        if (!Plugin::getInstance()->assignment->hasConsent()) {
+            return $this->asJson(['status' => 'consent']);
+        }
+
         $events = $request->getBodyParam('events', []);
         if (empty($events)) {
             // Single event
@@ -60,9 +65,17 @@ class TrackingController extends Controller
             $eventType = $event['type'] ?? 'impression';
             $goalHandle = $event['goal'] ?? null;
 
-            if (!is_string($experimentHandle) || $experimentHandle === ''
-                || !in_array($eventType, ['impression', 'conversion'], true)
+            if (!in_array($eventType, ['impression', 'conversion'], true)
+                || ($experimentHandle !== null && (!is_string($experimentHandle) || $experimentHandle === ''))
                 || ($goalHandle !== null && !is_string($goalHandle))) {
+                continue;
+            }
+
+            // An impression names its experiment; a conversion may not. `Wink.convert()` on a page
+            // without the experiment block (the thank-you page) sends only the goal, and it counts
+            // for every running experiment with that goal the visitor has seen. Before 5.2.0 those
+            // were dropped.
+            if ($experimentHandle === null && ($eventType !== 'conversion' || $goalHandle === null || $goalHandle === '')) {
                 continue;
             }
 
@@ -78,14 +91,11 @@ class TrackingController extends Controller
                 break;
             }
 
-            $experiment = Plugin::getInstance()->experiments->getRunningExperiment($experimentHandle);
-            if (!$experiment) {
-                continue;
-            }
-
-            $variant = Plugin::getInstance()->assignment->assignVariant($visitorId, $experiment);
-            if (!$variant) {
-                continue;
+            if ($experimentHandle !== null) {
+                $experiment = Plugin::getInstance()->experiments->getRunningExperiment($experimentHandle);
+                $experiments = $experiment ? [$experiment] : [];
+            } else {
+                $experiments = Plugin::getInstance()->experiments->getRunningExperimentsWithGoal($goalHandle);
             }
 
             $context = [
@@ -94,18 +104,24 @@ class TrackingController extends Controller
                 'metadata' => $event['metadata'] ?? null,
             ];
 
-            if ($eventType === 'conversion') {
-                // A conversion counts toward a goal this experiment has. Before 5.0.6 an unknown
-                // goal was recorded anyway, with no goal at all.
-                $goal = $goalHandle ? Plugin::getInstance()->experiments->getGoalByHandle($experiment->id, $goalHandle) : null;
-                if ($goal === null) {
+            foreach ($experiments as $experiment) {
+                $variant = Plugin::getInstance()->assignment->assignVariant($visitorId, $experiment);
+                if (!$variant) {
                     continue;
                 }
-                if (Plugin::getInstance()->tracking->recordConversion($experiment->id, $variant->id, $goal->id, $visitorId, $context)) {
-                    $recorded++;
-                }
-            } else {
-                if (Plugin::getInstance()->tracking->recordImpression($experiment->id, $variant->id, $visitorId, $context)) {
+
+                if ($eventType === 'conversion') {
+                    // A conversion counts toward a goal this experiment has, from a visitor with an
+                    // impression (TrackingService checks). Before 5.0.6 an unknown goal was
+                    // recorded anyway, with no goal at all.
+                    $goal = $goalHandle ? Plugin::getInstance()->experiments->getGoalByHandle($experiment->id, $goalHandle) : null;
+                    if ($goal === null) {
+                        continue;
+                    }
+                    if (Plugin::getInstance()->tracking->recordConversion($experiment->id, $variant->id, $goal->id, $visitorId, $context)) {
+                        $recorded++;
+                    }
+                } elseif (Plugin::getInstance()->tracking->recordImpression($experiment->id, $variant->id, $visitorId, $context)) {
                     $recorded++;
                 }
             }
@@ -131,7 +147,9 @@ class TrackingController extends Controller
         }
 
         $experimentHandle = $request->getQueryParam('e');
-        if (is_string($experimentHandle) && $experimentHandle !== '' && Plugin::getInstance()->tracking->withinBudget()) {
+        if (is_string($experimentHandle) && $experimentHandle !== ''
+            && Plugin::getInstance()->assignment->hasConsent()
+            && Plugin::getInstance()->tracking->withinBudget()) {
             $experiment = Plugin::getInstance()->experiments->getRunningExperiment($experimentHandle);
             if ($experiment) {
                 $visitorId = Plugin::getInstance()->assignment->getVisitorId();
