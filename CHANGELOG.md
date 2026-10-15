@@ -1,6 +1,6 @@
 # Release Notes for Wink
 
-## Unreleased
+## 5.3.0 - 2026-10-15
 
 ### Added
 - `{% experiment %}` takes any expression as its handle, so a page-builder block can pass its own
