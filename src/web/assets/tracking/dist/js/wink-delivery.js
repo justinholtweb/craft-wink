@@ -24,6 +24,8 @@
     }
 
     var VALID_ID = /^[A-Za-z0-9-]{8,64}$/;
+    var COOKIE_NAME = /^[A-Za-z0-9_\-]{1,64}$/;
+    var COOKIE_DOMAIN = /^\.?[A-Za-z0-9.\-]{1,253}$/;
     var table = null;
     var current = null;
     var pending = [];
@@ -52,6 +54,35 @@
         }
 
         return (crc ^ -1) >>> 0;
+    }
+
+    // A block's data-wink-config sits on an ordinary element, so user content that keeps `data-*`
+    // attributes can forge one. It may choose variants, but never where an impression is sent or
+    // which cookie is written: the URL must be on this origin (a path, without a URL parser) and
+    // cookie names must be the token Settings::$cookieName allows.
+    function sameOrigin(url) {
+        var here;
+        var there;
+
+        if (typeof url !== 'string') {
+            return null;
+        }
+        url = url.replace(/^[\u0000-\u0020]+/, '').replace(/[\t\n\r]/g, '');
+        if (typeof root.URL === 'function' && root.location) {
+            try {
+                here = new root.URL(root.location.href);
+                there = new root.URL(url, here);
+                return (there.protocol === 'https:' || there.protocol === 'http:')
+                    && there.protocol === here.protocol && there.host === here.host ? there.href : null;
+            } catch (e) {
+                return null;
+            }
+        }
+        return /^\/(?![\/\\])/.test(url) ? url : null;
+    }
+
+    function cookieName(name) {
+        return typeof name === 'string' && COOKIE_NAME.test(name) ? name : null;
     }
 
     function controlOf(variants) {
@@ -140,13 +171,19 @@
     }
 
     function visitorId(cfg) {
-        var id = current || readCookie(cfg.cookie);
+        var name = cookieName(cfg.cookie);
+        var id;
+
+        if (!name) {
+            throw new Error('Invalid cookie name');
+        }
+        id = current || readCookie(name);
 
         if (!id || !VALID_ID.test(id)) {
             id = newId();
             if (doc) {
-                doc.cookie = cfg.cookie + '=' + id + '; path=/; max-age=' + (cfg.days * 86400) + '; SameSite=Lax'
-                    + (cfg.domain ? '; domain=' + cfg.domain : '')
+                doc.cookie = name + '=' + id + '; path=/; max-age=' + (cfg.days * 86400) + '; SameSite=Lax'
+                    + (typeof cfg.domain === 'string' && COOKIE_DOMAIN.test(cfg.domain) ? '; domain=' + cfg.domain : '')
                     + (root.location && root.location.protocol === 'https:' ? '; Secure' : '');
             }
         }
@@ -170,7 +207,8 @@
         try {
             cfg = JSON.parse(el.getAttribute('data-wink-config'));
             // Consent required and not given: the control, no visitor ID, no cookie, no impression.
-            consented = !cfg.consent || readCookie(cfg.consent) === '1';
+            // A consent cookie that isn't a valid name can't have been given.
+            consented = !cfg.consent || (cookieName(cfg.consent) !== null && readCookie(cfg.consent) === '1');
             if (consented) {
                 id = visitorId(cfg);
                 handle = assign(id, cfg);
@@ -202,9 +240,9 @@
             el.setAttribute('data-wink-vid', id);
         }
 
-        if (handle !== null && consented && cfg && cfg.track) {
+        if (handle !== null && consented && cfg && cfg.track && sameOrigin(cfg.track.url)) {
             pending.push({
-                track: cfg.track,
+                track: {url: sameOrigin(cfg.track.url), dnt: cfg.track.dnt},
                 event: {
                     experiment: el.getAttribute('data-wink-experiment'),
                     variant: handle,
@@ -234,30 +272,35 @@
     function flush() {
         var items = pending.splice(0, pending.length);
         var dnt = root.navigator && (root.navigator.doNotTrack === '1' || root.doNotTrack === '1');
-        var events = [];
-        var url = null;
+        var batches = {};
+        var urls = [];
 
         // A tracker that is loaded but not started (bundled, Wink.start() not yet called) sends nothing.
         if ((root.Wink && root.Wink.started !== false) || !items.length || typeof root.fetch !== 'function') {
             return;
         }
+        // Each block's impression goes to that block's own URL. One batch for the whole page would
+        // let a block planted by user content choose where every real block's impressions are sent.
         for (var i = 0; i < items.length; i++) {
             if (!(items[i].track.dnt && dnt)) {
-                url = items[i].track.url;
-                events.push(items[i].event);
+                var url = items[i].track.url;
+                if (!Object.prototype.hasOwnProperty.call(batches, url)) {
+                    batches[url] = [];
+                    urls.push(url);
+                }
+                batches[url].push(items[i].event);
             }
         }
-        if (!events.length) {
-            return;
-        }
 
-        root.fetch(url, {
-            method: 'POST',
-            credentials: 'same-origin',
-            keepalive: true,
-            headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-            body: JSON.stringify({events: events.slice(0, 25)})
-        }).catch(function () {});
+        for (var j = 0; j < urls.length; j++) {
+            root.fetch(urls[j], {
+                method: 'POST',
+                credentials: 'same-origin',
+                keepalive: true,
+                headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+                body: JSON.stringify({events: batches[urls[j]].slice(0, 25)})
+            }).catch(function () {});
+        }
     }
 
     if (doc && root.addEventListener) {

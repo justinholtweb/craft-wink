@@ -71,18 +71,26 @@ function cacheSafeBlock(handle) {
 /**
  * A page: which elements are on it, and everything the scripts try to send. `readyState` is where
  * the parser is when the scripts run: `loading` for the injected tags, `interactive` for a
- * deferred or module bundle.
+ * deferred or module bundle. `trackingConfig` goes on `configOn` — `body`, `html`, or `div` (an
+ * element after the content) — and `content` is user content placed ahead of the blocks, in
+ * document order after <html> and <body>. `withUrl` gives the scripts a URL parser.
  */
-function page({ trackingConfig = null, blocks = [], cookie = '', readyState = 'loading', winkConfig } = {}) {
+function page({ trackingConfig = null, configOn = 'body', content = [], blocks = [], cookie = '', readyState = 'loading', winkConfig, withUrl = false } = {}) {
     const sent = [];
     const timers = [];
     const intervals = [];
     const listeners = {};
     const on = (target) => (type, fn) => { (listeners[target + ':' + type] ||= []).push(fn); };
 
-    const all = blocks.slice();
+    const html = element({});
+    const body = element({});
+    const all = [html, body].concat(content, blocks);
     if (trackingConfig !== null) {
-        all.push(element({ 'data-wink-tracking-config': trackingConfig }));
+        if (configOn === 'div') {
+            all.push(element({ 'data-wink-tracking-config': trackingConfig }));
+        } else {
+            (configOn === 'html' ? html : body).setAttribute('data-wink-tracking-config', trackingConfig);
+        }
     }
     const matches = (el, selector) => {
         const m = selector.match(/^\[([\w-]+)(?:="?([^"\]]*)"?)?\]$/);
@@ -93,6 +101,8 @@ function page({ trackingConfig = null, blocks = [], cookie = '', readyState = 'l
         readyState,
         cookie,
         referrer: '',
+        documentElement: html,
+        body,
         querySelector: (s) => all.find((el) => matches(el, s)) || null,
         querySelectorAll: (s) => all.filter((el) => matches(el, s)),
         addEventListener: on('document'),
@@ -117,6 +127,9 @@ function page({ trackingConfig = null, blocks = [], cookie = '', readyState = 'l
     };
     if (winkConfig !== undefined) {
         window._winkConfig = winkConfig;
+    }
+    if (withUrl) {
+        window.URL = URL;
     }
 
     /** Fire every pending timer: the tracker's batch, without waiting for it. */
@@ -241,6 +254,138 @@ const events = (p) => p.sent.flatMap((s) => s.events);
         return bundled.started === true && events(p).length === 1 || JSON.stringify({ started: bundled.started, events: events(p).length });
     });
 
+    console.log('\nForged configuration (5.4.1)');
+
+    const forged = (config) => element({ 'data-wink-tracking-config': JSON.stringify(config) });
+    const evil = { endpoint: 'https://evil.test/collect', cookies: { consent: 'always_present' } };
+
+    await check('the page config on <body> is used, and on <html>', () => {
+        const urls = ['body', 'html'].map((configOn) => {
+            const p = page({ trackingConfig: JSON.stringify({ endpoint: '/on-' + configOn }), configOn, blocks: [cacheSafeBlock('hero')], readyState: 'interactive' });
+            const w = run(p, tracker);
+            w.Wink.start();
+            w.Wink.convert('signup');
+            p.flush();
+            return p.sent[0] && p.sent[0].url;
+        });
+
+        return urls.join() === '/on-body,/on-html' || JSON.stringify(urls);
+    });
+
+    await check('a forged config in user content is ignored: no config on <body>, nothing starts', () => {
+        const p = page({ content: [forged(evil)], blocks: [cacheSafeBlock('hero')], readyState: 'interactive' });
+        const w = run(p, tracker);
+        const started = w.Wink.start();
+        p.flush();
+
+        return started === false && p.sent.length === 0 || JSON.stringify({ started, sent: p.sent });
+    });
+
+    await check('a forged config ahead of one on another element: neither is read', () => {
+        const p = page({ content: [forged(evil)], trackingConfig: JSON.stringify({ endpoint: '/wink/track' }), configOn: 'div', blocks: [cacheSafeBlock('hero')], readyState: 'interactive' });
+        const w = run(p, tracker);
+        const started = w.Wink.start();
+        p.flush();
+
+        return started === false && p.sent.length === 0 || JSON.stringify({ started, sent: p.sent });
+    });
+
+    await check('a forged consent cookie name cannot switch consent on (config on a <div>, as 5.4.0 allowed)', () => {
+        const p = page({
+            content: [forged(evil)],
+            trackingConfig: JSON.stringify({ endpoint: '/wink/track', requireConsent: true }),
+            configOn: 'div',
+            cookie: 'always_present=1',
+            blocks: [cacheSafeBlock('hero')],
+            readyState: 'interactive',
+        });
+        const w = run(p, tracker);
+        w.Wink.start();
+        w.Wink.convert('signup');
+        p.flush();
+
+        return p.sent.length === 0 || JSON.stringify(p.sent);
+    });
+
+    const endpointCases = [
+        ['https://evil.test/collect', '/wink/track'],
+        ['//evil.test/collect', '/wink/track'],
+        ['/\\evil.test/collect', '/wink/track'],
+        ['\t//evil.test/collect', '/wink/track'],
+        ['/\t/evil.test/collect', '/wink/track'],
+        ['\u0001 //evil.test/collect', '/wink/track'],
+        ['javascript:alert(1)', '/wink/track'],
+        ['  /custom/track', '/custom/track'],
+    ];
+    for (const withUrl of [false, true]) {
+        const origin = withUrl ? 'https://shop.test' : '';  // what an accepted path resolves to
+        for (const source of ['page', 'window._winkConfig']) {
+            await check('cross-origin endpoints fall back to /wink/track (' + source + ', ' + (withUrl ? 'URL' : 'no URL parser') + ')', () => {
+                const got = endpointCases.map(([endpoint]) => {
+                    const p = source === 'page'
+                        ? page({ trackingConfig: JSON.stringify({ endpoint }), blocks: [cacheSafeBlock('hero')], readyState: 'interactive', withUrl })
+                        : page({ winkConfig: Object.assign({}, injectedConfig, { endpoint }), blocks: [cacheSafeBlock('hero')], readyState: 'interactive', withUrl });
+                    const w = run(p, tracker);
+                    w.Wink.start();
+                    w.Wink.convert('signup');
+                    p.flush();
+                    return p.sent[0] && p.sent[0].url;
+                });
+                // Rejected: the default, as written. Accepted: as the URL parser resolved it.
+                const want = endpointCases.map(([, w]) => (w === '/wink/track' ? w : origin + w));
+
+                return JSON.stringify(got) === JSON.stringify(want) || JSON.stringify({ got, want });
+            });
+        }
+    }
+
+    await check('URL parser: a same-origin absolute endpoint is kept; another port or scheme is not', () => {
+        const got = ['https://shop.test/abs', 'https://shop.test:8443/x', 'http://shop.test/x'].map((endpoint) => {
+            const p = page({ trackingConfig: JSON.stringify({ endpoint }), blocks: [cacheSafeBlock('hero')], readyState: 'interactive', withUrl: true });
+            const w = run(p, tracker);
+            w.Wink.start();
+            w.Wink.convert('signup');
+            p.flush();
+            return p.sent[0] && p.sent[0].url;
+        });
+
+        return got.join() === 'https://shop.test/abs,/wink/track,/wink/track' || JSON.stringify(got);
+    });
+
+    await check('an endpoint passed to Wink.start() is the site’s own code and is used as given', () => {
+        const p = page({ trackingConfig: JSON.stringify({ endpoint: '/wink/track' }), blocks: [cacheSafeBlock('hero')], readyState: 'interactive', withUrl: true });
+        const w = run(p, tracker);
+        w.Wink.start({ endpoint: 'https://collector.shop.test/track' });
+        w.Wink.convert('signup');
+        p.flush();
+
+        return p.sent[0] && p.sent[0].url === 'https://collector.shop.test/track' || JSON.stringify(p.sent);
+    });
+
+    await check('bad cookie names fall back to the defaults, from the page, _winkConfig and Wink.start()', () => {
+        const bad = { consent: 'x; domain=evil.test', visitor: 'a=b', domain: 'shop.test; SameSite=None' };
+        const written = [];
+        const results = ['page', 'winkConfig', 'options'].map((source) => {
+            const p = page({
+                trackingConfig: source === 'page' ? JSON.stringify({ endpoint: '/wink/track', cookies: bad }) : null,
+                winkConfig: source === 'winkConfig' ? Object.assign({}, injectedConfig, { cookies: bad }) : undefined,
+                readyState: 'interactive',
+            });
+            let jar = '';
+            Object.defineProperty(p.document, 'cookie', { get: () => jar, set: (v) => { written.push(v); jar = v; }, configurable: true });
+            const w = run(p, tracker);
+            if (source === 'options') {
+                w.Wink.start({ endpoint: '/wink/track', cookies: bad });
+            }
+            w.Wink.consent();
+            w.Wink.revokeConsent();
+            return written.splice(0);
+        });
+        const ok = results.every((r) => r.length === 2 && r.every((c) => /^_wink_consent=1?; path=\/; max-age=\d+; SameSite=Lax; Secure$/.test(c)));
+
+        return ok || JSON.stringify(results);
+    });
+
     await check('wink.min.js and wink-delivery.js still parse as classic scripts (no module syntax)', () => {
         new vm.Script(tracker);
         new vm.Script(delivery);
@@ -287,6 +432,62 @@ const events = (p) => p.sent.flatMap((s) => s.events);
         p.flush();
 
         return events(p).length === 1 || JSON.stringify(p.sent);
+    });
+
+    /** A cache-safe block whose data-wink-config has been forged, for a visitor in the variant. */
+    const forgedBlock = (handle, changes) => {
+        const block = cacheSafeBlock(handle);
+        block.setAttribute('data-wink-config', JSON.stringify(Object.assign(JSON.parse(block.getAttribute('data-wink-config')), changes)));
+        return block;
+    };
+
+    for (const withUrl of [false, true]) {
+        await check('a block config that sends impressions off-origin sends nothing (' + (withUrl ? 'URL' : 'no URL parser') + ')', () => {
+            const urls = ['https://evil.test/c', '//evil.test/c', '/\\evil.test/c', '\t//evil.test/c', 'javascript:alert(1)'];
+            const p = page({ blocks: urls.map((url, i) => forgedBlock('f' + i, { track: { url, dnt: false } })), readyState: 'interactive', withUrl });
+            run(p, delivery);
+            p.fire('window:load');
+
+            return p.sent.length === 0 || JSON.stringify(p.sent);
+        });
+    }
+
+    await check('a forged block after a real one cannot redirect the real block’s impression', () => {
+        const p = page({ blocks: [cacheSafeBlock('hero'), forgedBlock('forged', { track: { url: '//evil.test/c', dnt: false } })], readyState: 'interactive' });
+        run(p, delivery);
+        p.fire('window:load');
+
+        return p.sent.length === 1 && p.sent[0].url === '/wink/track' && events(p).map((e) => e.experiment).join() === 'hero'
+            || JSON.stringify(p.sent);
+    });
+
+    await check('a forged block naming another path on this site cannot take the real block’s impression', () => {
+        const p = page({ blocks: [cacheSafeBlock('hero'), forgedBlock('forged', { track: { url: '/actions/users/save-user', dnt: false } })], readyState: 'interactive' });
+        run(p, delivery);
+        p.fire('window:load');
+
+        const to = (url) => p.sent.filter((s) => s.url === url).flatMap((s) => s.events.map((e) => e.experiment)).join();
+
+        return to('/wink/track') === 'hero' && !to('/actions/users/save-user').includes('hero')
+            || JSON.stringify(p.sent);
+    });
+
+    await check('a block config with a bad cookie name writes no cookie and shows the fallback', () => {
+        const written = [];
+        const blocks = [
+            forgedBlock('a', { cookie: 'x; domain=evil.test' }),
+            forgedBlock('b', { cookie: '_wink_vid', domain: 'shop.test; SameSite=None' }),
+            forgedBlock('c', { consent: 'always present' }),
+        ];
+        const p = page({ blocks, readyState: 'interactive', cookie: 'always present=1' });
+        Object.defineProperty(p.document, 'cookie', { get: () => '', set: (v) => written.push(v), configurable: true });
+        run(p, delivery);
+        p.fire('window:load');
+        const chosen = blocks.map((b) => b.children.filter((c) => c.hasAttribute('data-wink-chosen')).map((c) => c.getAttribute('data-wink-option')).join());
+
+        return chosen.join('|') === 'control|variant-a|control'
+            && written.length === 1 && /^_wink_vid=[^;]+; path=\/; max-age=\d+; SameSite=Lax; Secure$/.test(written[0])
+            || JSON.stringify({ chosen, written });
     });
 
     console.log('\nES module');

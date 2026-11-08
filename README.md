@@ -161,10 +161,16 @@ instead of letting `winkTrackingScript()` publish it from Craft's asset URL.
    `vendor/justinholtweb/craft-wink/src/web/assets/tracking/dist/js/` into your source, side by side
    (or import them from `vendor/` directly). `wink.mjs` is a two-line wrapper around the other two,
    not a third copy.
-2. Replace `{{ winkTrackingScript() }}` with `{{ winkTrackingConfig() }}` on an element, e.g.
-   `<body {{ winkTrackingConfig() }}>`. It writes the same configuration as a
-   `data-wink-tracking-config` attribute, publishes nothing, and renders nothing while tracking is
-   off. It doesn't vary by visitor, so the page stays cacheable.
+2. Replace `{{ winkTrackingScript() }}` with `{{ winkTrackingConfig() }}` on `<html>` or
+   `<body>` — `<body {{ winkTrackingConfig() }}>` — and nowhere else. It writes the same
+   configuration as a `data-wink-tracking-config` attribute, publishes nothing, and renders nothing
+   while tracking is off. It doesn't vary by visitor, so the page stays cacheable. The tracker reads
+   the attribute from those two elements only: rich text and other user content often keep `data-*`
+   attributes through a sanitiser, so a copy anywhere else could be forged to send events to
+   another site or rename the consent cookie. User content can't put attributes on `<html>` or
+   `<body>`. (Even there, an endpoint on another origin is replaced with `/wink/track`, and a cookie
+   name that isn't letters, digits, `_` and `-` with the default; an endpoint passed to
+   `Wink.start()` is your own code and is used as given.)
 3. Start the tracker from your bundle:
 
    ```javascript

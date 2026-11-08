@@ -1,5 +1,25 @@
 # Release Notes for Wink
 
+## 5.4.1 - 2026-11-08
+
+### Security
+- A bundled tracker read its configuration from the first `data-wink-tracking-config` attribute
+  anywhere on the page, so user content that kept `data-*` attributes through a sanitiser could
+  forge one: sending events to another site, or naming a consent cookie that is always present and
+  tracking without consent. It is now read from `<html>` or `<body>` only, which user content can't
+  reach; put `{{ winkTrackingConfig() }}` on one of them. An endpoint from the page or
+  `window._winkConfig` must be on the page's own origin (otherwise `/wink/track` is used), and
+  cookie names must be letters, digits, `_` and `-` (otherwise the defaults are used).
+- The delivery runtime applies the same rules to a cache-safe block's `data-wink-config`: an
+  impression URL on another origin sends nothing, and a block naming an invalid cookie shows its
+  fallback and writes no cookie. Impressions are sent per block, each to that block's own URL, so a
+  forged block can no longer redirect other blocks' impressions, even to another path on the site.
+
+### Changed
+- **If you bundle the tracker and followed the 5.4.0 README by putting `{{ winkTrackingConfig() }}`
+  on an element other than `<html>` or `<body>`, move it.** Until you do, `Wink.start()` finds no
+  configuration and nothing is tracked.
+
 ## 5.4.0 - 2026-11-08
 
 ### Added
