@@ -152,6 +152,49 @@ In cache-safe mode:
 - A Content Security Policy that blocks inline scripts keeps blocks hidden until the tracker loads
   and reveals them.
 
+## Bundling the tracker
+
+A site that serves all its JavaScript from its own bundle (a CDN, say) can bundle Wink's tracker
+instead of letting `winkTrackingScript()` publish it from Craft's asset URL.
+
+1. Copy `wink.mjs`, `wink.min.js` and `wink-delivery.js` from
+   `vendor/justinholtweb/craft-wink/src/web/assets/tracking/dist/js/` into your source, side by side
+   (or import them from `vendor/` directly). `wink.mjs` is a two-line wrapper around the other two,
+   not a third copy.
+2. Replace `{{ winkTrackingScript() }}` with `{{ winkTrackingConfig() }}` on an element, e.g.
+   `<body {{ winkTrackingConfig() }}>`. It writes the same configuration as a
+   `data-wink-tracking-config` attribute, publishes nothing, and renders nothing while tracking is
+   off. It doesn't vary by visitor, so the page stays cacheable.
+3. Start the tracker from your bundle:
+
+   ```javascript
+   import Wink from './wink/wink.mjs';       // ES modules
+
+   // CommonJS, in TrackingAsset's order:
+   // require('./wink/wink-delivery.js');
+   // const Wink = require('./wink/wink.min.js');
+
+   Wink.start();   // reads data-wink-tracking-config; Wink.start({ batchInterval: 10 }) overrides it
+   ```
+
+`Wink.start()` with no configuration anywhere starts nothing, and malformed configuration is
+ignored rather than thrown. Until it is called, `Wink.convert()` and `Wink.track()` do nothing;
+`Wink.consent()` and `Wink.revokeConsent()` work from the start. Both files still set
+`window.Wink` and `window.WinkDelivery`, so inline `Wink.convert(…)` calls keep working, and a page
+that loads the tracker twice (injected and bundled) keeps one instance and hands it to the bundle.
+
+**Variant flicker.** Bundling moves only the tracker. Showing the visitor's variant is not the
+tracker's job: a server-side block is chosen while the page renders, and a cache-safe block carries
+its own inline script, straight after the block, that reveals the variant before the browser paints
+it. That inline script stays in the page whatever you bundle — don't strip it, and don't try to
+replace it with the bundled copy, which runs too late to prevent a flash. The bundled copy matters
+only when a Content Security Policy blocks inline scripts: the blocks then stay hidden (never the
+wrong variant, but blank) until it runs. Load the bundle with `defer` or `type="module"` and it
+reveals them as the HTML finishes parsing, the same moment the injected script did; `async`, or a
+bundle loaded after `DOMContentLoaded`, leaves them hidden for longer. Better still, allow the
+inline script with a nonce or hash. The inline `<style>` that hides the other variants has to be
+allowed too, or every variant shows.
+
 ## Permissions
 
 | Permission | Lets someone |

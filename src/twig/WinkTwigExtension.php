@@ -3,6 +3,8 @@
 namespace justinholtweb\wink\twig;
 
 use Craft;
+use craft\helpers\Html;
+use craft\helpers\Json;
 use justinholtweb\wink\elements\Experiment;
 use justinholtweb\wink\enums\GoalType;
 use justinholtweb\wink\Plugin;
@@ -25,6 +27,7 @@ class WinkTwigExtension extends AbstractExtension
             new TwigFunction('winkRender', [$this, 'winkRender'], ['is_safe' => ['html']]),
             new TwigFunction('winkExperiment', [$this, 'winkExperiment']),
             new TwigFunction('winkTrackingScript', [$this, 'winkTrackingScript'], ['is_safe' => ['html']]),
+            new TwigFunction('winkTrackingConfig', [$this, 'winkTrackingConfig'], ['is_safe' => ['html']]),
         ];
     }
 
@@ -128,16 +131,49 @@ class WinkTwigExtension extends AbstractExtension
      */
     public function winkTrackingScript(): string
     {
-        $settings = Plugin::getInstance()->getSettings();
+        $config = $this->_getTrackerConfig();
 
-        if (!$settings->enableTracking) {
+        if ($config === null) {
             return '';
         }
 
-        $view = Craft::$app->getView();
-        $view->registerAssetBundle(TrackingAsset::class);
+        Craft::$app->getView()->registerAssetBundle(TrackingAsset::class);
 
-        $config = [
+        // Goal targets and the GTM event name are written in the control panel; hex-escape them so
+        // a `</script>` in one can't end this tag early.
+        return '<script>window._winkConfig = ' . json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ';</script>';
+    }
+
+    /**
+     * The tracker's configuration as an attribute, for a site that bundles `wink.mjs` (or
+     * `wink.min.js`) with its own JavaScript instead of calling {@see winkTrackingScript()}. Nothing
+     * is published and no script is written; the bundled tracker's `Wink.start()` reads it.
+     *
+     *     <body {{ winkTrackingConfig() }}>
+     *
+     * The same configuration winkTrackingScript() writes: page-specific, never visitor-specific,
+     * so the page stays cacheable. Renders nothing while tracking is off, which leaves a bundled
+     * tracker with nothing to start.
+     */
+    public function winkTrackingConfig(): string
+    {
+        $config = $this->_getTrackerConfig();
+
+        return $config === null ? '' : Html::renderTagAttributes(['data-wink-tracking-config' => Json::encode($config)]);
+    }
+
+    /**
+     * What the tracker needs, or null while tracking is off.
+     */
+    private function _getTrackerConfig(): ?array
+    {
+        $settings = Plugin::getInstance()->getSettings();
+
+        if (!$settings->enableTracking) {
+            return null;
+        }
+
+        return [
             'endpoint' => '/wink/track',
             'batchInterval' => $settings->batchInterval,
             'respectDnt' => $settings->respectDnt,
@@ -153,10 +189,6 @@ class WinkTwigExtension extends AbstractExtension
                 'domain' => (string)(Craft::cookieConfig()['domain'] ?? ''),
             ],
         ];
-
-        // Goal targets and the GTM event name are written in the control panel; hex-escape them so
-        // a `</script>` in one can't end this tag early.
-        return '<script>window._winkConfig = ' . json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ';</script>';
     }
 
     /**

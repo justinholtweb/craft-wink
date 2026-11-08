@@ -89,7 +89,7 @@ return [
     'Settings saved.' => 'Settings saved.',
     'Couldn\'t save settings.' => 'Couldn\'t save settings.',
     'Enable Tracking' => 'Enable Tracking',
-    'Globally enable or disable event tracking.' => 'Globally enable or disable event tracking.',
+    'Globally enable or disable event tracking. Put the tracker on a page with `{{ winkTrackingScript() }}`, or bundle `wink.mjs` with your own JavaScript and add `{{ winkTrackingConfig() }}`.' => 'Globally enable or disable event tracking. Put the tracker on a page with `{{ winkTrackingScript() }}`, or bundle `wink.mjs` with your own JavaScript and add `{{ winkTrackingConfig() }}`.',
     'Respect Do Not Track' => 'Respect Do Not Track',
     'Skip tracking for visitors with DNT header enabled.' => 'Skip tracking for visitors with DNT header enabled.',
     'Anonymize IP Addresses' => 'Anonymize IP Addresses',

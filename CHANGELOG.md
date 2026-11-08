@@ -1,5 +1,24 @@
 # Release Notes for Wink
 
+## 5.4.0 - 2026-11-08
+
+### Added
+- The tracker can be bundled with a site's own JavaScript instead of published from Craft's asset
+  URL. Import `wink.mjs` (ES modules) or `wink.min.js` (CommonJS or a plain script), replace
+  `{{ winkTrackingScript() }}` with `{{ winkTrackingConfig() }}`, and call `Wink.start()`, which
+  reads its configuration from the page; options passed to it win. Cache-safe blocks keep their
+  inline script, so bundling can't make a variant flicker. See "Bundling the tracker" in the README.
+
+### Changed
+- The tracker starts on its own only when `window._winkConfig` is set (as `winkTrackingScript()`
+  does); loaded without it, it waits for `Wink.start()` instead of tracking with default settings.
+
+### Fixed
+- Loaded twice, the tracker registered its listeners twice and sent every event twice; the first
+  copy now wins, and a bundler is handed that one.
+- A delivery runtime loaded after the page had parsed (deferred, or as a module) didn't reveal
+  cache-safe blocks whose inline script a Content Security Policy had blocked.
+
 ## 5.3.0 - 2026-10-15
 
 ### Added

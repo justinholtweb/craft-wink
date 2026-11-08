@@ -16,7 +16,7 @@
         id: 'enableTracking',
         name: 'enableTracking',
         on: settings.enableTracking,
-        instructions: 'Globally enable or disable event tracking.'|t('wink'),
+        instructions: 'Globally enable or disable event tracking. Put the tracker on a page with `{{ winkTrackingScript() }}`, or bundle `wink.mjs` with your own JavaScript and add `{{ winkTrackingConfig() }}`.'|t('wink'),
     }) }}
 
     {{ forms.lightswitchField({

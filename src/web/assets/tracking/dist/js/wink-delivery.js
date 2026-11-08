@@ -9,12 +9,17 @@
  *
  * DeliveryService inlines this after every block, so it must define itself once and keep every
  * statement semicolon-terminated (it is shipped with its indentation stripped). It also loads
- * before wink.min.js through TrackingAsset, and runs under node for the parity tests.
+ * before wink.min.js through TrackingAsset, can be bundled by the site through wink.mjs, and runs
+ * under node for the parity tests.
  */
 (function (root) {
     'use strict';
 
+    // Already defined (inlined by a block, or bundled): one runtime, and a bundler gets it.
     if (root.WinkDelivery) {
+        if (typeof module === 'object' && module && module.exports) {
+            module.exports = root.WinkDelivery;
+        }
         return;
     }
 
@@ -232,7 +237,8 @@
         var events = [];
         var url = null;
 
-        if (root.Wink || !items.length || typeof root.fetch !== 'function') {
+        // A tracker that is loaded but not started (bundled, Wink.start() not yet called) sends nothing.
+        if ((root.Wink && root.Wink.started !== false) || !items.length || typeof root.fetch !== 'function') {
             return;
         }
         for (var i = 0; i < items.length; i++) {
@@ -255,9 +261,12 @@
     }
 
     if (doc && root.addEventListener) {
-        // Blocks whose inline call was blocked (a Content Security Policy, say) still resolve.
+        // Blocks whose inline call was blocked (a Content Security Policy, say) still resolve: at
+        // DOMContentLoaded, or now when this runs after parsing (bundled, deferred or a module).
         if (doc.readyState === 'loading') {
             doc.addEventListener('DOMContentLoaded', resolveAll);
+        } else {
+            resolveAll();
         }
         if (doc.readyState === 'complete') {
             setTimeout(flush, 0);
@@ -276,7 +285,7 @@
 
     root.WinkDelivery = api;
 
-    if (typeof module === 'object' && module.exports) {
+    if (typeof module === 'object' && module && module.exports) {
         module.exports = api;
     }
 })(typeof window !== 'undefined' ? window : globalThis);

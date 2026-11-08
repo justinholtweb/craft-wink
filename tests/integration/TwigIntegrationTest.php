@@ -7,6 +7,7 @@ use justinholtweb\wink\enums\GoalType;
 use justinholtweb\wink\models\Settings;
 use justinholtweb\wink\Plugin;
 use justinholtweb\wink\services\AssignmentService;
+use justinholtweb\wink\web\assets\tracking\TrackingAsset;
 
 /**
  * Renders templates through Craft's view so the {% experiment %} tag and the
@@ -367,6 +368,59 @@ final class TwigIntegrationTest extends WinkTestCase
         // One closing tag — the script's own.
         $this->assertSame(1, substr_count(strtolower($output), '</script'));
         $this->assertStringNotContainsString('<script>alert', $output);
+    }
+
+    // ---- winkTrackingConfig(): a bundled tracker ---------------------------
+
+    public function testTrackingConfigCarriesWhatTheTrackingScriptDoesAsAnAttribute(): void
+    {
+        $experiment = $this->createExperiment(['handle' => 'bundled-goals', 'experimentStatus' => 'running']);
+        $this->addGoals($experiment, [['handle' => 'cta', 'goalType' => GoalType::Click, 'goalTarget' => '.cta-button']]);
+
+        $output = trim($this->render('{{ winkTrackingConfig() }}'));
+
+        $this->assertMatchesRegularExpression('~^data-wink-tracking-config="[^"]*"$~', $output);
+        preg_match('~data-wink-tracking-config="([^"]*)"~', $output, $m);
+        $config = json_decode(html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5), true, flags: JSON_THROW_ON_ERROR);
+
+        $this->assertSame($this->trackerConfig(), $config);
+        $this->assertSame('/wink/track', $config['endpoint']);
+        $this->assertSame('.cta-button', $config['goals'][0]['target']);
+    }
+
+    public function testTrackingConfigPublishesNoScript(): void
+    {
+        $view = Craft::$app->getView();
+        $view->assetBundles = [];
+
+        $output = $this->render('{{ winkTrackingConfig() }}');
+
+        $this->assertStringNotContainsString('<script', $output);
+        $this->assertArrayNotHasKey(TrackingAsset::class, $view->assetBundles);
+
+        // …where the injected path does publish it.
+        $this->render('{{ winkTrackingScript() }}');
+        $this->assertArrayHasKey(TrackingAsset::class, $view->assetBundles);
+    }
+
+    public function testTrackingConfigIsEmptyWhenTrackingIsDisabled(): void
+    {
+        $this->withSettings(['enableTracking' => false]);
+
+        $this->assertSame('', trim($this->render('{{ winkTrackingConfig() }}')));
+    }
+
+    public function testAGoalSelectorCannotLeaveTheTrackingConfigAttribute(): void
+    {
+        $experiment = $this->createExperiment(['handle' => 'attr-escape', 'experimentStatus' => 'running']);
+        $this->addGoals($experiment, [
+            ['handle' => 'cta', 'goalType' => GoalType::Click, 'goalTarget' => 'a[href="x"]><script>alert(1)</script>'],
+        ]);
+
+        $output = $this->render('{{ winkTrackingConfig() }}');
+
+        $this->assertSame(2, substr_count($output, '"'), 'Only the attribute’s own quotes');
+        $this->assertStringNotContainsString('<', $output);
     }
 
     // ---- consent (#6) -------------------------------------------------------
